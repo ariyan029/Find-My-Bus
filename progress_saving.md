@@ -1,28 +1,26 @@
 # Progress Tracker
 
-## Status: FOUNDATION READY / UI SCAFFOLD VERIFIED
+## Status: SHADCN UI INTEGRATED & POSTGRES DOCKER READY
 
 ### Completed Tasks
-- [x] Initial project ideation and discussion
-- [x] Create `implementation_plan.md`
-- [x] Create `tech.md`
-- [x] Create `progress_saving.md`
-- [x] Create `system_architecture.md` (Enterprise Level)
-- [x] Finalized the Tech Stack
-- [x] Initialize web frontend repository (Next.js 16 + React 19 + Tailwind CSS v4)
-- [x] Design core mobile-first UI components (Home/Explore, Search/Routes, Saved, Profile)
-- [x] Link and verify dynamic Bottom Navigation
-- [x] Configure PWA manifest (`manifest.json`)
-- [x] Install frontend dependencies (`pnpm install`) and verify production build compilation
+- [x] Initial project ideation and architecture specification
+- [x] Create `system_architecture.md`, `tech.md`, `implementation_plan.md`
+- [x] Initialize Next.js 16 + React 19 + Tailwind CSS frontend
+- [x] Install and configure Shadcn UI components (Card, Button, Badge, Input, Tabs, Avatar, Separator)
+- [x] Redesign platform with authentic Kolkata transit design (dark theme, live ETA, route progression, speed, occupancy, and stop navigator)
+- [x] Create Docker Compose setup for PostgreSQL 16 with PostGIS extension (`docker-compose.yml`)
+- [x] Create database initialization SQL script (`docker/init.sql`) with real Kolkata stops, routes, and active buses
+- [x] Set up Prisma schema (`frontend/prisma/schema.prisma`) with PostgreSQL adapter and connection pooling
+- [x] Implement backend API routes (`/api/buses/live`, `/api/routes`, `/api/stops`, `/api/crowdsource/ping`) with graceful offline fallback
+- [x] Verify production build (`pnpm run build`) with zero TypeScript or compilation errors
 
 ### In Progress
-- [ ] Gather initial Kolkata bus route data (Static Data: stops, coordinates, routes)
-- [ ] Set up Database / Backend infrastructure (Prisma / PostgreSQL / API routes)
+- [ ] Connect interactive map (Mapbox / Leaflet / Google Maps) to live bus coordinates
+- [ ] Implement browser Geolocation API live background sync
 
 ### Pending Tasks
-- [ ] Implement live GPS tracking & crowdsourcing mechanism (Geolocation API)
-- [ ] Integrate interactive map (Google Maps / Mapbox) with live bus markers
-- [ ] Dynamic ETA calculation & search filtering
+- [ ] Deploy PostgreSQL container in production / cloud
+- [ ] End-to-end crowdsourcing telemetry validation with commuter field testing
 
 ---
 *Last Updated: 2026-11-23*

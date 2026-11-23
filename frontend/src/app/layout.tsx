@@ -1,21 +1,15 @@
 import type { Metadata, Viewport } from "next";
-import { Outfit } from "next/font/google";
 import "./globals.css";
 import BottomNav from "./components/BottomNav";
 
-const outfit = Outfit({
-  variable: "--font-outfit",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  title: "Where is my Bus?",
-  description: "Live track your local Kolkata buses with real-time ETA.",
+  title: "Where is my Bus? (Kolkata) - Real-Time Transit Tracking",
+  description: "Live crowdsourced Kolkata bus tracking, dynamic ETAs, route schedules, and stop navigator.",
   manifest: "/manifest.json",
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0f0f14",
+  themeColor: "#09090b",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -24,19 +18,17 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${outfit.variable} antialiased`}>
-      <body className="h-[100dvh] flex flex-col font-sans overflow-hidden bg-[var(--background)] text-[var(--foreground)] selection:bg-brand-500/20">
-        
-        {/* Main Application Shell */}
-        <main className="flex-1 flex flex-col w-full max-w-[430px] mx-auto relative h-full overflow-hidden bg-[var(--color-surface)] shadow-[0_0_80px_rgba(99,102,241,0.06)] ring-1 ring-white/[0.04]">
-          
-          <div className="flex-1 relative z-10 w-full h-full overflow-hidden flex flex-col">
-            {children}
+    <html lang="en" className="dark">
+      <body className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col font-sans selection:bg-blue-600/30">
+        {/* App Frame - Responsive for both Desktop and Mobile */}
+        <div className="flex-1 flex justify-center w-full min-h-screen sm:py-4">
+          <div className="w-full max-w-lg min-h-screen sm:min-h-[92vh] sm:max-h-[92vh] bg-[#121217] sm:border sm:border-[#272732] sm:rounded-2xl sm:shadow-2xl flex flex-col overflow-hidden relative">
+            <div className="flex-1 overflow-y-auto flex flex-col">
+              {children}
+            </div>
+            <BottomNav />
           </div>
-          
-          <BottomNav />
-        </main>
-        
+        </div>
       </body>
     </html>
   );

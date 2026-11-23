@@ -1,63 +1,154 @@
 "use client";
 
-import { User, Shield, Radio, Bell, MapPin, Sparkles } from "lucide-react";
+import * as React from "react";
+import {
+  User,
+  Radio,
+  Database,
+  Shield,
+  Award,
+  CheckCircle2,
+  Server,
+  Layers,
+  Activity,
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 
 export default function ProfilePage() {
+  const [bgTracking, setBgTracking] = React.useState<boolean>(true);
+  const [autoOffline, setAutoOffline] = React.useState<boolean>(true);
+
   return (
-    <div className="relative h-full w-full flex flex-col bg-[var(--color-surface)] px-5 pt-12 pb-4 overflow-y-auto">
-      <header className="mb-6 flex items-center gap-4">
-        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center shadow-[0_0_20px_rgba(99,102,241,0.3)]">
-          <User size={24} className="text-white" />
-        </div>
-        <div>
-          <h1 className="text-[18px] font-bold text-[var(--color-text-primary)] tracking-tight">Kolkata Commuter</h1>
-          <p className="text-[12px] text-[var(--color-text-muted)] font-medium mt-0.5">Crowdsource Contributor</p>
-        </div>
-      </header>
-
-      {/* Contributor Badge */}
-      <div className="rounded-2xl bg-gradient-to-r from-brand-600/15 via-brand-500/10 to-brand-700/15 border border-brand-500/20 p-4 mb-5">
-        <div className="flex items-center gap-2 mb-1">
-          <Sparkles size={16} className="text-brand-400" />
-          <span className="text-[13px] font-bold text-[var(--color-text-primary)]">Community GPS Contributor</span>
-        </div>
-        <p className="text-[11px] text-[var(--color-text-muted)] leading-relaxed">
-          Sharing anonymous location updates when on-board helps thousands of Kolkata commuters see accurate live bus ETAs.
-        </p>
-      </div>
-
-      {/* Settings Options */}
-      <div className="flex flex-col gap-2">
-        {[
-          { icon: Radio, title: "Background GPS Tracking", subtitle: "Active while tracking a bus journey", toggle: true },
-          { icon: Bell, title: "Bus Arrival Notifications", subtitle: "Alert 2 stops before destination", toggle: true },
-          { icon: Shield, title: "Privacy & Data Anonymization", subtitle: "Your location is strictly anonymized", toggle: false },
-          { icon: MapPin, title: "Offline Route Cache", subtitle: "Saved routes accessible without internet", toggle: true },
-        ].map((item, idx) => (
-          <div
-            key={idx}
-            className="glass-light border border-white/[0.06] rounded-2xl p-3.5 flex items-center justify-between"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-white/[0.04] flex items-center justify-center shrink-0">
-                <item.icon size={16} className="text-brand-400" />
-              </div>
-              <div>
-                <h3 className="text-[13px] font-bold text-[var(--color-text-primary)]">{item.title}</h3>
-                <p className="text-[11px] text-[var(--color-text-muted)]">{item.subtitle}</p>
-              </div>
+    <div className="flex-1 flex flex-col bg-[#09090b] text-zinc-100 p-4 space-y-4">
+      {/* ─── Profile Header ─── */}
+      <Card className="border-[#272732] bg-gradient-to-b from-[#181822] to-[#121217]">
+        <CardContent className="p-4 flex items-center gap-3.5">
+          <Avatar className="h-14 w-14 border border-blue-500/40">
+            <AvatarFallback className="bg-blue-600/20 text-blue-400 font-bold text-base">
+              CC
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-base font-bold text-white">Kolkata Commuter</h1>
+              <Badge variant="success" className="text-[10px] py-0 px-1.5 h-4">
+                Verified
+              </Badge>
             </div>
-            {item.toggle && (
-              <div className="w-10 h-5 rounded-full bg-brand-600 flex items-center justify-end px-0.5">
-                <div className="w-4 h-4 rounded-full bg-white shadow-sm" />
-              </div>
-            )}
+            <p className="text-xs text-zinc-400 mt-0.5">Crowdsourced Transit Contributor</p>
+            <div className="flex items-center gap-1.5 mt-1 text-[11px] text-blue-400">
+              <Award className="h-3.5 w-3.5" />
+              <span>Level 3 · Regular Explorer</span>
+            </div>
           </div>
-        ))}
+        </CardContent>
+      </Card>
+
+      {/* ─── Contribution Metrics ─── */}
+      <div className="grid grid-cols-3 gap-2">
+        <Card className="border-[#272732] bg-[#121217] text-center p-3">
+          <p className="text-[10px] uppercase font-bold text-zinc-400">Pings Sent</p>
+          <p className="text-lg font-bold text-white mt-1 font-mono">1,420</p>
+        </Card>
+        <Card className="border-[#272732] bg-[#121217] text-center p-3">
+          <p className="text-[10px] uppercase font-bold text-zinc-400">KM Tracked</p>
+          <p className="text-lg font-bold text-blue-400 mt-1 font-mono">184.2</p>
+        </Card>
+        <Card className="border-[#272732] bg-[#121217] text-center p-3">
+          <p className="text-[10px] uppercase font-bold text-zinc-400">Accuracy</p>
+          <p className="text-lg font-bold text-emerald-400 mt-1 font-mono">99.4%</p>
+        </Card>
       </div>
 
-      <div className="mt-8 text-center">
-        <p className="text-[11px] text-[var(--color-text-muted)]">Where is my Bus (Kolkata) · v0.1.0 Alpha</p>
+      {/* ─── Database & Docker Infrastructure Status ─── */}
+      <Card className="border-[#272732] bg-[#121217]">
+        <CardHeader className="pb-2.5">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-xs uppercase font-bold tracking-wider text-zinc-400 flex items-center gap-1.5">
+              <Database className="h-3.5 w-3.5 text-blue-400" />
+              Database & Docker Infrastructure
+            </CardTitle>
+            <Badge variant="outline" className="text-[10px] border-blue-500/30 text-blue-400">
+              PostgreSQL
+            </Badge>
+          </div>
+          <CardDescription className="text-xs text-zinc-400">
+            Real-time geospatial storage with PostGIS extension
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent className="space-y-2 text-xs">
+          <div className="p-2.5 rounded-lg bg-[#0d0d12] border border-[#272732] space-y-1 font-mono text-[11px]">
+            <div className="flex justify-between">
+              <span className="text-zinc-500">Service:</span>
+              <span className="text-zinc-200">postgres:16-postgis</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-zinc-500">Port:</span>
+              <span className="text-blue-400">5432</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-zinc-500">Database:</span>
+              <span className="text-zinc-200">findmybus</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-zinc-500">Prisma Client:</span>
+              <span className="text-emerald-400">Configured & Resilient</span>
+            </div>
+          </div>
+
+          <div className="text-[11px] text-zinc-400 pt-1">
+            To start the container anytime on your machine:
+            <code className="block bg-[#181822] text-zinc-200 p-2 rounded mt-1 border border-[#272732] font-mono">
+              docker compose up -d
+            </code>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ─── App Settings ─── */}
+      <Card className="border-[#272732] bg-[#121217]">
+        <CardContent className="p-3.5 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <h3 className="text-xs font-semibold text-white">Background GPS Contribution</h3>
+              <p className="text-[11px] text-zinc-400">Broadcasts anonymous pings while riding</p>
+            </div>
+            <Button
+              size="sm"
+              variant={bgTracking ? "default" : "outline"}
+              onClick={() => setBgTracking(!bgTracking)}
+              className="h-7 text-xs px-2.5"
+            >
+              {bgTracking ? "Enabled" : "Disabled"}
+            </Button>
+          </div>
+
+          <Separator className="bg-[#272732]" />
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <h3 className="text-xs font-semibold text-white">Offline Route Cache</h3>
+              <p className="text-[11px] text-zinc-400">Preload Kolkata bus stops for low-network zones</p>
+            </div>
+            <Button
+              size="sm"
+              variant={autoOffline ? "default" : "outline"}
+              onClick={() => setAutoOffline(!autoOffline)}
+              className="h-7 text-xs px-2.5"
+            >
+              {autoOffline ? "Active" : "Off"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="text-center py-2">
+        <p className="text-[11px] text-zinc-500">Where is my Bus (Kolkata) · Production v0.2.0</p>
       </div>
     </div>
   );
