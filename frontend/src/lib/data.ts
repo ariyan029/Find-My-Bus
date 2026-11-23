@@ -1,3 +1,5 @@
+import type { BusStatus, Occupancy } from "./enums";
+
 export interface BusStop {
   id: string;
   name: string;
@@ -36,8 +38,8 @@ export interface LiveBus {
   currentLng: number;
   speedKmh: number;
   heading: number;
-  status: "ON_TIME" | "DELAYED" | "CONGESTED";
-  occupancy: "SEATS_AVAILABLE" | "STANDING_ROOM" | "CROWDED";
+  status: BusStatus;
+  occupancy: Occupancy;
   nextStop: string;
   etaNextStopMins: number;
   destination: string;
@@ -300,7 +302,7 @@ export const ACTIVE_LIVE_BUSES: LiveBus[] = [
     currentLng: 88.4110,
     speedKmh: 38.5,
     heading: 85,
-    status: "ON_TIME",
+    status: "ON_ROUTE",
     occupancy: "SEATS_AVAILABLE",
     nextStop: "Ultadanga Hudco",
     etaNextStopMins: 4,
@@ -318,7 +320,7 @@ export const ACTIVE_LIVE_BUSES: LiveBus[] = [
     speedKmh: 29.0,
     heading: 92,
     status: "CONGESTED",
-    occupancy: "STANDING_ROOM",
+    occupancy: "STANDING_ONLY",
     nextStop: "Salt Lake Sector V",
     etaNextStopMins: 7,
     destination: "New Town Shapoorji",
@@ -334,7 +336,7 @@ export const ACTIVE_LIVE_BUSES: LiveBus[] = [
     currentLng: 88.4310,
     speedKmh: 46.0,
     heading: 40,
-    status: "ON_TIME",
+    status: "ON_ROUTE",
     occupancy: "SEATS_AVAILABLE",
     nextStop: "Airport Gate 1",
     etaNextStopMins: 8,
@@ -352,7 +354,7 @@ export const ACTIVE_LIVE_BUSES: LiveBus[] = [
     speedKmh: 18.0,
     heading: 75,
     status: "DELAYED",
-    occupancy: "CROWDED",
+    occupancy: "FULL",
     nextStop: "Sealdah Flyover Crossing",
     etaNextStopMins: 11,
     destination: "Salt Lake Sector V",
@@ -368,7 +370,7 @@ export const ACTIVE_LIVE_BUSES: LiveBus[] = [
     currentLng: 88.3890,
     speedKmh: 34.0,
     heading: 25,
-    status: "ON_TIME",
+    status: "ON_ROUTE",
     occupancy: "SEATS_AVAILABLE",
     nextStop: "Science City More",
     etaNextStopMins: 5,

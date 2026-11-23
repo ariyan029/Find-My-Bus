@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 import { KOLKATA_ROUTES, KOLKATA_STOPS, ACTIVE_LIVE_BUSES, BusRoute, BusStop, LiveBus } from "./data";
+import { toBusStatus, toOccupancy } from "./enums";
 
 let prismaInstance: PrismaClient | null = null;
 
@@ -50,8 +51,8 @@ export async function getLiveBuses(filterRoute?: string): Promise<LiveBus[]> {
           currentLng: b.currentLng || 88.3639,
           speedKmh: b.speedKmh || 30.0,
           heading: b.heading || 0.0,
-          status: (b.status as LiveBus["status"]) || "ON_TIME",
-          occupancy: (b.occupancyStatus as LiveBus["occupancy"]) || "SEATS_AVAILABLE",
+          status: toBusStatus(b.status),
+          occupancy: toOccupancy(b.occupancyStatus),
           nextStop: "Next Scheduled Stop",
           etaNextStopMins: 5,
           destination: b.route?.destination || "Terminus",

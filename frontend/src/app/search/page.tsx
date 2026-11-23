@@ -16,14 +16,18 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { KOLKATA_ROUTES, KOLKATA_STOPS, BusRoute } from "@/lib/data";
+import type { BusRoute } from "@/lib/data";
+import { useRoutes } from "@/lib/api";
 
 export default function SearchPage() {
   const [sourceStop, setSourceStop] = React.useState<string>("Howrah Station");
   const [destStop, setDestStop] = React.useState<string>("New Town Shapoorji");
   const [filterType, setFilterType] = React.useState<string>("ALL");
   const [searchWord, setSearchWord] = React.useState<string>("");
-  const [selectedRoute, setSelectedRoute] = React.useState<BusRoute | null>(KOLKATA_ROUTES[0]);
+  const { data: routes } = useRoutes();
+  const [pickedRoute, setSelectedRoute] = React.useState<BusRoute | null>(null);
+  // Default to the first route until the user picks one.
+  const selectedRoute = pickedRoute ?? routes[0] ?? null;
 
   const handleSwap = () => {
     const temp = sourceStop;
@@ -32,7 +36,7 @@ export default function SearchPage() {
   };
 
   const filteredRoutes = React.useMemo(() => {
-    return KOLKATA_ROUTES.filter((r) => {
+    return routes.filter((r) => {
       const matchSearch =
         r.routeNumber.toLowerCase().includes(searchWord.toLowerCase()) ||
         r.name.toLowerCase().includes(searchWord.toLowerCase()) ||
@@ -45,7 +49,7 @@ export default function SearchPage() {
       if (filterType === "MINIBUS") return r.busType === "MINIBUS";
       return true;
     });
-  }, [searchWord, filterType]);
+  }, [routes, searchWord, filterType]);
 
   return (
     <div className="flex-1 flex flex-col bg-[#09090b] text-zinc-100 p-4 space-y-4">
@@ -56,7 +60,7 @@ export default function SearchPage() {
           <p className="text-xs text-zinc-400">Find direct and connecting buses across Kolkata</p>
         </div>
         <Badge variant="outline" className="border-blue-500/30 text-blue-400 text-xs">
-          {KOLKATA_ROUTES.length} Official Routes
+          {routes.length} Official Routes
         </Badge>
       </div>
 

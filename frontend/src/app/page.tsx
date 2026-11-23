@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import dynamic from "next/dynamic";
 import {
   Bus,
   MapPin,
@@ -21,19 +22,30 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { KOLKATA_STOPS, KOLKATA_ROUTES, ACTIVE_LIVE_BUSES, LiveBus } from "@/lib/data";
+import type { LiveBus } from "@/lib/data";
+import { useLiveBuses, useRoutes, useStops } from "@/lib/api";
+import { BUS_STATUS_LABELS, OCCUPANCY_LABELS } from "@/lib/enums";
+import { useLocationSharing } from "@/lib/useLocationSharing";
+
+// Leaflet touches `window`, so only load the map in the browser.
+const BusMap = dynamic(() => import("@/components/BusMap"), {
+  ssr: false,
+  loading: () => <div className="h-56 rounded-xl bg-[#121217] border border-[#272732] animate-pulse" />,
+});
 
 export default function HomePage() {
   const [selectedCategory, setSelectedCategory] = React.useState<string>("ALL");
   const [searchQuery, setSearchQuery] = React.useState<string>("");
   const [activeBusIndex, setActiveBusIndex] = React.useState<number>(0);
-  const [isPinging, setIsPinging] = React.useState<boolean>(false);
-  const [pingSuccess, setPingSuccess] = React.useState<string | null>(null);
 
-  const currentBus: LiveBus = ACTIVE_LIVE_BUSES[activeBusIndex] || ACTIVE_LIVE_BUSES[0];
+  const { data: liveBuses, loading: busesLoading, error: busesError } = useLiveBuses();
+  const { data: routes } = useRoutes();
+  const { data: stops } = useStops();
+
+  const currentBus: LiveBus | undefined = liveBuses[activeBusIndex] ?? liveBuses[0];
 
   const filteredRoutes = React.useMemo(() => {
-    return KOLKATA_ROUTES.filter((route) => {
+    return routes.filter((route) => {
       const matchesSearch =
         route.routeNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
         route.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -47,34 +59,18 @@ export default function HomePage() {
       if (selectedCategory === "MINIBUS") return route.busType === "MINIBUS";
       return true;
     });
-  }, [searchQuery, selectedCategory]);
+  }, [routes, searchQuery, selectedCategory]);
 
-  const handleShareLocation = async () => {
-    setIsPinging(true);
-    setPingSuccess(null);
-    try {
-      const res = await fetch("/api/crowdsource/ping", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          busNumber: currentBus.busNumber,
-          latitude: currentBus.currentLat + (Math.random() - 0.5) * 0.005,
-          longitude: currentBus.currentLng + (Math.random() - 0.5) * 0.005,
-          speedKmh: currentBus.speedKmh,
-          heading: currentBus.heading,
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setPingSuccess(`Broadcasted live GPS for ${currentBus.busNumber} (${currentBus.regNumber})`);
-        setTimeout(() => setPingSuccess(null), 4000);
-      }
-    } catch {
-      setPingSuccess(`GPS broadcast simulated for ${currentBus.busNumber}`);
-      setTimeout(() => setPingSuccess(null), 4000);
-    } finally {
-      setIsPinging(false);
-    }
+  const sharing = useLocationSharing();
+  const isSharingThisBus =
+    sharing.status !== "idle" && sharing.status !== "error" && sharing.bus?.id === currentBus?.id;
+  const isSharingOtherBus =
+    sharing.status !== "idle" && sharing.status !== "error" && !isSharingThisBus;
+
+  const handleShareToggle = () => {
+    if (!currentBus) return;
+    if (isSharingThisBus) sharing.stop();
+    else sharing.start(currentBus);
   };
 
   return (
@@ -131,7 +127,29 @@ export default function HomePage() {
           </Tabs>
         </div>
 
+        {/* ─── Live Map ─── */}
+        <BusMap
+          buses={liveBuses}
+          stops={stops}
+          selectedBusId={currentBus?.id}
+          onSelectBus={(id) => {
+            const idx = liveBuses.findIndex((b) => b.id === id);
+            if (idx >= 0) setActiveBusIndex(idx);
+          }}
+        />
+
         {/* ─── Featured Live Tracking Card ─── */}
+        {!currentBus ? (
+          <Card className="border-[#272732] bg-[#121217]">
+            <CardContent className="p-6 text-center text-sm text-zinc-400">
+              {busesLoading
+                ? "Loading live buses…"
+                : busesError
+                  ? `Couldn't load live buses (${busesError})`
+                  : "No buses are being tracked right now."}
+            </CardContent>
+          </Card>
+        ) : (
         <Card className="border-[#272732] bg-gradient-to-b from-[#181822] to-[#121217] shadow-lg">
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between">
@@ -175,7 +193,7 @@ export default function HomePage() {
                   <Users className="h-3 w-3" /> Crowd
                 </div>
                 <p className="text-xs font-bold text-amber-400 mt-0.5">
-                  {currentBus.occupancy === "SEATS_AVAILABLE" ? "Seats Free" : "Standing"}
+                  {OCCUPANCY_LABELS[currentBus.occupancy]}
                 </p>
               </div>
 
@@ -195,7 +213,7 @@ export default function HomePage() {
                 <span>Current Corridor</span>
                 <span className="text-[11px] text-emerald-400 flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                  On-Time Status
+                  {BUS_STATUS_LABELS[currentBus.status]}
                 </span>
               </div>
 
@@ -217,40 +235,69 @@ export default function HomePage() {
             <div className="flex items-center justify-between gap-2 pt-1">
               <div className="text-xs text-zinc-400">
                 <span className="text-white font-medium block">Riding this bus now?</span>
-                <span className="text-[11px] text-zinc-400">Help commuters with real-time GPS</span>
+                <span className="text-xs text-zinc-400">
+                  {isSharingOtherBus
+                    ? `You're sharing for ${sharing.bus?.busNumber} (${sharing.bus?.regNumber})`
+                    : "Share your GPS while on board. Keep this screen open."}
+                </span>
               </div>
               <Button
                 size="sm"
-                variant="transit"
-                onClick={handleShareLocation}
-                disabled={isPinging}
-                className="gap-1.5 text-xs font-semibold"
+                variant={isSharingThisBus ? "outline" : "transit"}
+                onClick={handleShareToggle}
+                disabled={isSharingOtherBus}
+                aria-pressed={isSharingThisBus}
+                className="gap-1.5 text-xs font-semibold shrink-0"
               >
-                <Radio className={`h-3.5 w-3.5 ${isPinging ? "animate-spin" : ""}`} />
-                {isPinging ? "Pinging..." : "Share Location"}
+                <Radio className={`h-3.5 w-3.5 ${sharing.status === "locating" && isSharingThisBus ? "animate-spin" : ""}`} />
+                {!isSharingThisBus
+                  ? "Share Location"
+                  : sharing.status === "locating"
+                    ? "Getting GPS…"
+                    : "Stop Sharing"}
               </Button>
             </div>
 
-            {pingSuccess && (
-              <div className="p-2.5 rounded-md bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-2">
+            {isSharingThisBus && sharing.status === "sharing" && (
+              <div
+                role="status"
+                className="p-2.5 rounded-md bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-2"
+              >
                 <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
-                <span>{pingSuccess}</span>
+                <span>
+                  Sharing live GPS for {sharing.bus?.busNumber}
+                  {sharing.accuracyMeters != null && ` · ±${Math.round(sharing.accuracyMeters)} m`}
+                  {` · ${sharing.sentCount} update${sharing.sentCount === 1 ? "" : "s"} sent`}
+                </span>
+              </div>
+            )}
+
+            {sharing.warning && sharing.status !== "idle" && (
+              <div role="status" className="p-2.5 rounded-md bg-amber-950/50 border border-amber-500/40 text-amber-300 text-xs">
+                {sharing.warning}
+              </div>
+            )}
+
+            {sharing.status === "error" && sharing.error && (
+              <div role="alert" className="p-2.5 rounded-md bg-red-950/50 border border-red-500/40 text-red-300 text-xs">
+                {sharing.error}
               </div>
             )}
           </CardContent>
         </Card>
+        )}
 
         {/* ─── Active Fleet Switcher ─── */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-400">
-              Active Buses Tracking Now ({ACTIVE_LIVE_BUSES.length})
+              Active Buses Tracking Now ({liveBuses.length})
             </h2>
             <span className="text-[11px] text-blue-400 font-medium">Auto-updating</span>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
-            {ACTIVE_LIVE_BUSES.map((b, idx) => {
+            {liveBuses.map((b, idx) => {
               const isSelected = activeBusIndex === idx;
               return (
                 <div
@@ -292,7 +339,7 @@ export default function HomePage() {
           </div>
 
           <div className="space-y-2">
-            {KOLKATA_STOPS.slice(0, 5).map((stop) => (
+            {stops.slice(0, 5).map((stop) => (
               <Card
                 key={stop.id}
                 className="border-[#272732] bg-[#121217] hover:border-[#383848] transition-colors cursor-pointer"

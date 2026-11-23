@@ -14,11 +14,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { KOLKATA_ROUTES, KOLKATA_STOPS } from "@/lib/data";
+import { useRoutes, useStops } from "@/lib/api";
 
 export default function SavedPage() {
-  const favoriteRoutes = KOLKATA_ROUTES.slice(0, 3);
-  const favoriteStops = KOLKATA_STOPS.slice(0, 4);
+  // TODO: replace with the user's actual saved items (e.g. localStorage).
+  const { data: routes } = useRoutes();
+  const { data: stops } = useStops();
+  const favoriteRoutes = routes.slice(0, 3);
+  const favoriteStops = stops.slice(0, 4);
 
   return (
     <div className="flex-1 flex flex-col bg-[#09090b] text-zinc-100 p-4 space-y-4">
@@ -36,8 +39,8 @@ export default function SavedPage() {
 
       <Tabs defaultValue="buses" className="w-full">
         <TabsList className="grid grid-cols-2 w-full bg-[#121217] border border-[#272732] h-9">
-          <TabsTrigger value="buses" className="text-xs">Favorite Routes (3)</TabsTrigger>
-          <TabsTrigger value="stops" className="text-xs">Saved Stops (4)</TabsTrigger>
+          <TabsTrigger value="buses" className="text-xs">Favorite Routes ({favoriteRoutes.length})</TabsTrigger>
+          <TabsTrigger value="stops" className="text-xs">Saved Stops ({favoriteStops.length})</TabsTrigger>
         </TabsList>
 
         {/* ─── Favorite Buses Tab ─── */}
