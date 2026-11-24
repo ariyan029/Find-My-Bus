@@ -400,19 +400,23 @@ function findMatchingStop(query: string, stopsCatalog: BusStop[]): BusStop | und
   );
 }
 
-function resolveStopIndex(route: BusRoute, query: string, stopsCatalog: BusStop[]): number {
-  const q = expandQueryAlias(query);
-  if (!q) return -1;
-
-  const matchedCatalogStop = findMatchingStop(query, stopsCatalog);
+function resolveStopIndex(
+  route: BusRoute,
+  expandedQuery: string,
+  matchedStopNormalized: string | null
+): number {
+  if (!expandedQuery) return -1;
 
   const routeNames = route.stopPoints?.map((p) => p.name) ?? route.stops;
   return routeNames.findIndex((name) => {
     const n = normalizeText(name);
-    if (n === q || n.includes(q) || q.includes(n)) return true;
-    if (matchedCatalogStop) {
-      const m = normalizeText(matchedCatalogStop.name);
-      return n === m || n.includes(m) || m.includes(n);
+    if (n === expandedQuery || n.includes(expandedQuery) || expandedQuery.includes(n)) return true;
+    if (matchedStopNormalized) {
+      return (
+        n === matchedStopNormalized ||
+        n.includes(matchedStopNormalized) ||
+        matchedStopNormalized.includes(n)
+      );
     }
     return false;
   });
@@ -513,20 +517,38 @@ export function findJourneys(
 
   const fromStopMatch = findMatchingStop(fromQuery, stopsCatalog);
   const toStopMatch = findMatchingStop(toQuery, stopsCatalog);
+  const expandedFrom = expandQueryAlias(fromQuery);
+  const expandedTo = expandQueryAlias(toQuery);
+  const matchedFromNorm = fromStopMatch ? normalizeText(fromStopMatch.name) : null;
+  const matchedToNorm = toStopMatch ? normalizeText(toStopMatch.name) : null;
 
   const direct: DirectJourney[] = [];
-  const startRoutes: Array<{ route: BusRoute; fromIdx: number }> = [];
-  const endRoutes: Array<{ route: BusRoute; toIdx: number }> = [];
+  const startRoutes: Array<{ route: BusRoute; fromIdx: number; names: string[] }> = [];
+  const endRoutes: Array<{
+    route: BusRoute;
+    toIdx: number;
+    indexByNormName: Map<string, number>;
+  }> = [];
 
   for (const route of routes) {
-    const fromIdx = resolveStopIndex(route, fromQuery, stopsCatalog);
-    const toIdx = resolveStopIndex(route, toQuery, stopsCatalog);
+    const fromIdx = resolveStopIndex(route, expandedFrom, matchedFromNorm);
+    const toIdx = resolveStopIndex(route, expandedTo, matchedToNorm);
 
     if (fromIdx >= 0 && toIdx >= 0 && fromIdx !== toIdx) {
       direct.push(buildLeg(route, fromIdx, toIdx, departureDate, liveBuses));
     }
-    if (fromIdx >= 0) startRoutes.push({ route, fromIdx });
-    if (toIdx >= 0) endRoutes.push({ route, toIdx });
+    if (fromIdx >= 0) {
+      const names = route.stopPoints?.map((p) => p.name) ?? route.stops;
+      startRoutes.push({ route, fromIdx, names });
+    }
+    if (toIdx >= 0) {
+      const names = route.stopPoints?.map((p) => p.name) ?? route.stops;
+      const indexByNormName = new Map<string, number>();
+      for (let idx = 0; idx < names.length; idx++) {
+        indexByNormName.set(normalizeText(names[idx]), idx);
+      }
+      endRoutes.push({ route, toIdx, indexByNormName });
+    }
   }
 
   direct.sort((a, b) => {
@@ -535,21 +557,20 @@ export function findJourneys(
     return a.estMins - b.estMins;
   });
 
-  // Compute 1-transfer connections when direct options are absent or limited.
+  // Compute 1-transfer connections using O(1) per-stop transfer hub lookup.
   const connecting: ConnectingJourney[] = [];
   const seenPairs = new Set<string>();
 
   for (const s of startRoutes) {
-    const sNames = s.route.stopPoints?.map((p) => p.name) ?? s.route.stops;
+    const sNames = s.names;
     for (const e of endRoutes) {
       if (s.route.id === e.route.id) continue;
-      const eNames = e.route.stopPoints?.map((p) => p.name) ?? e.route.stops;
 
       for (let i = 0; i < sNames.length; i++) {
         if (i === s.fromIdx) continue;
         const transferName = sNames[i];
-        const j = eNames.findIndex((n) => normalizeText(n) === normalizeText(transferName));
-        if (j < 0 || j === e.toIdx) continue;
+        const j = e.indexByNormName.get(normalizeText(transferName));
+        if (j === undefined || j === e.toIdx) continue;
 
         const pairKey = `${s.route.id}:${e.route.id}:${transferName}`;
         if (seenPairs.has(pairKey)) continue;

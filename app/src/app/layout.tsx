@@ -31,23 +31,27 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="preconnect" href="https://tile.openstreetmap.org" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://server.arcgisonline.com" />
+      </head>
       <body className="min-h-screen bg-[#F8F4E7] text-[#4E342E] flex flex-col font-sans selection:bg-[#CC5500] selection:text-white antialiased relative overflow-x-hidden">
         
-        {/* ─── Rich Ambient Glassmorphic Background Mesh & Glowing Orbs ─── */}
-        <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-          {/* Top-Right Vibrant Burnt Orange Orb */}
-          <div className="absolute -top-36 -right-24 w-[620px] h-[620px] rounded-full bg-gradient-to-br from-[#CC5500]/26 via-[#CC5500]/14 to-transparent blur-[120px]" />
+        {/* ─── GPU-Friendly Ambient Glassmorphic Background Mesh (Zero Heavy Blur Filters) ─── */}
+        <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden contain-strict">
+          {/* Top-Right Vibrant Burnt Orange Glow */}
+          <div className="absolute -top-44 -right-32 w-[720px] h-[720px] rounded-full bg-[radial-gradient(circle,rgba(204,85,0,0.20)_0%,rgba(204,85,0,0.08)_38%,transparent_70%)]" />
           
-          {/* Center-Left Deep Chocolate Brown Ambient Orb */}
-          <div className="absolute top-[26%] -left-36 w-[680px] h-[680px] rounded-full bg-gradient-to-tr from-[#4E342E]/22 via-[#4E342E]/10 to-transparent blur-[140px]" />
+          {/* Center-Left Deep Chocolate Brown Ambient Glow */}
+          <div className="absolute top-[22%] -left-44 w-[780px] h-[780px] rounded-full bg-[radial-gradient(circle,rgba(78,52,46,0.16)_0%,rgba(78,52,46,0.06)_40%,transparent_70%)]" />
           
-          {/* Center-Right Warm Transit Radar Orb */}
-          <div className="absolute top-[48%] -right-28 w-[580px] h-[580px] rounded-full bg-gradient-to-bl from-[#CC5500]/18 via-[#CC5500]/8 to-transparent blur-[130px]" />
+          {/* Center-Right Warm Transit Radar Glow */}
+          <div className="absolute top-[45%] -right-36 w-[680px] h-[680px] rounded-full bg-[radial-gradient(circle,rgba(204,85,0,0.14)_0%,rgba(204,85,0,0.05)_40%,transparent_70%)]" />
           
-          {/* Bottom-Center Chocolate & Cream Foundation Orb */}
-          <div className="absolute -bottom-40 left-[15%] w-[750px] h-[750px] rounded-full bg-gradient-to-t from-[#4E342E]/18 via-[#4E342E]/8 to-transparent blur-[150px]" />
+          {/* Bottom-Center Chocolate & Cream Foundation Glow */}
+          <div className="absolute -bottom-48 left-[12%] w-[860px] h-[860px] rounded-full bg-[radial-gradient(circle,rgba(78,52,46,0.14)_0%,rgba(78,52,46,0.05)_40%,transparent_70%)]" />
 
-          {/* Concentric Spatial Radar Ripples (Visible through translucent glass) */}
+          {/* Concentric Spatial Radar Ripples */}
           <div className="absolute top-16 right-[18%] w-[480px] h-[480px] rounded-full border border-[#CC5500]/14" />
           <div className="absolute top-8 right-[15%] w-[640px] h-[640px] rounded-full border border-[#CC5500]/8" />
           <div className="absolute top-[32%] left-[8%] w-[420px] h-[420px] rounded-full border border-[#4E342E]/10" />

@@ -50,22 +50,26 @@ function StopAutocompleteInput({
 }) {
   const [open, setOpen] = React.useState(false);
 
+  const indexedStops = React.useMemo(
+    () =>
+      stops.map((s) => ({
+        stop: s,
+        haystack: `${s.name} ${s.bengaliName} ${s.code} ${s.zone} ${s.landmark}`.toLowerCase(),
+      })),
+    [stops]
+  );
+
   const suggestions = React.useMemo(() => {
     const q = value.trim().toLowerCase();
-    const list = !q
-      ? stops.slice(0, 8)
-      : stops
-          .filter(
-            (s) =>
-              s.name.toLowerCase().includes(q) ||
-              s.bengaliName.toLowerCase().includes(q) ||
-              s.code.toLowerCase().includes(q) ||
-              s.zone.toLowerCase().includes(q) ||
-              s.landmark.toLowerCase().includes(q)
-          )
-          .slice(0, 8);
-    return list;
-  }, [value, stops]);
+    if (!q) return stops.slice(0, 8);
+    const matches: BusStop[] = [];
+    for (let i = 0; i < indexedStops.length && matches.length < 8; i++) {
+      if (indexedStops[i].haystack.includes(q)) {
+        matches.push(indexedStops[i].stop);
+      }
+    }
+    return matches;
+  }, [value, stops, indexedStops]);
 
   return (
     <div className="relative">
@@ -136,6 +140,7 @@ function SearchPageContent({
   const [timePreset, setTimePreset] = React.useState<TimePreset>("now");
   const [filterType, setFilterType] = React.useState<string>("ALL");
   const [searchWord, setSearchWord] = React.useState<string>("");
+  const deferredSearchWord = React.useDeferredValue(searchWord);
   const [selectedRouteId, setSelectedRouteId] = React.useState<string | null>(null);
   const [activeQuery, setActiveQuery] = React.useState<{ from: string; to: string } | null>(() =>
     fromParam && toParam ? { from: fromParam, to: toParam } : null
@@ -188,7 +193,7 @@ function SearchPageContent({
   };
 
   const filteredRoutes = React.useMemo(() => {
-    const q = searchWord.trim().toLowerCase();
+    const q = deferredSearchWord.trim().toLowerCase();
     return routes.filter((r) => {
       const matchSearch =
         !q ||
@@ -204,7 +209,7 @@ function SearchPageContent({
       if (filterType === "MINIBUS") return r.busType === "MINIBUS";
       return true;
     });
-  }, [routes, searchWord, filterType]);
+  }, [routes, deferredSearchWord, filterType]);
 
   const popularStops = [
     "Barasat Chapadali",
@@ -529,7 +534,7 @@ function SearchPageContent({
                 <div
                   key={route.id}
                   onClick={() => setSelectedRouteId(route.id)}
-                  className={`p-4 rounded-xl border transition-all cursor-pointer space-y-2 ${
+                  className={`route-card-opt p-4 rounded-xl border transition-all cursor-pointer space-y-2 ${
                     isSelected
                       ? "bg-[#4E342E]/86 backdrop-blur-2xl text-[#F8F4E7] border-[#CC5500] border-l-4 border-l-[#CC5500] shadow-[0_12px_32px_rgba(78,52,46,0.28),inset_0_1px_1px_rgba(255,255,255,0.25)] scale-[1.01]"
                       : "bg-white/50 backdrop-blur-xl hover:bg-white/70 text-[#4E342E] border-white/75 border-b-[#4E342E]/15 hover:border-[#CC5500]/40 shadow-[0_6px_20px_rgba(78,52,46,0.06),inset_0_1px_1px_rgba(255,255,255,0.85)]"

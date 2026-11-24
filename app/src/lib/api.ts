@@ -11,11 +11,26 @@ interface ApiState<T> {
   storageMode?: "postgres" | "memory" | "cache";
 }
 
+interface CacheEntry<T> {
+  data: T[];
+  storageMode?: "postgres" | "memory" | "cache";
+  fetchedAt: number;
+}
+
+const MEMORY_CACHE = new Map<string, CacheEntry<unknown>>();
+const IN_FLIGHT = new Map<string, Promise<CacheEntry<unknown>>>();
+const LOCAL_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
 function readCachedList<T>(cacheKey?: string): T[] | null {
   if (!cacheKey || typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(cacheKey);
     if (!raw) return null;
+    const updatedAt = localStorage.getItem(`${cacheKey}.updatedAt`);
+    if (updatedAt) {
+      const age = Date.now() - new Date(updatedAt).getTime();
+      if (Number.isFinite(age) && age > LOCAL_CACHE_TTL_MS) return null;
+    }
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? (parsed as T[]) : null;
   } catch {
@@ -33,40 +48,86 @@ function writeCachedList<T>(cacheKey: string | undefined, items: T[]) {
   }
 }
 
+async function fetchDeduplicated<T>(
+  url: string,
+  key: string,
+  noStore: boolean,
+  cacheKey?: string
+): Promise<CacheEntry<T>> {
+  const existing = IN_FLIGHT.get(url);
+  if (existing) {
+    return (await existing) as CacheEntry<T>;
+  }
+
+  const reqPromise = (async (): Promise<CacheEntry<unknown>> => {
+    const res = await fetch(url, noStore ? { cache: "no-store" } : undefined);
+    if (!res.ok) throw new Error(`Request failed (${res.status})`);
+    const json = await res.json();
+    const items = (json[key] as unknown[]) ?? [];
+    writeCachedList(cacheKey, items);
+    const entry: CacheEntry<unknown> = {
+      data: items,
+      storageMode: json.storageMode,
+      fetchedAt: Date.now(),
+    };
+    MEMORY_CACHE.set(url, entry);
+    return entry;
+  })();
+
+  IN_FLIGHT.set(url, reqPromise);
+  try {
+    return (await reqPromise) as CacheEntry<T>;
+  } finally {
+    IN_FLIGHT.delete(url);
+  }
+}
+
 /**
- * Fetch a list from one of our API routes. Pass `refreshMs` to poll,
- * and optional `cacheKey` to persist an offline fallback copy in localStorage.
+ * Fetch a list from one of our API routes with SWR in-memory caching,
+ * request deduplication, visibility-aware polling, and localStorage fallback.
  */
 function useApiList<T>(
   url: string,
   key: string,
   refreshMs?: number,
-  cacheKey?: string
+  cacheKey?: string,
+  staleTimeMs = 60_000
 ): ApiState<T> {
-  const [state, setState] = React.useState<ApiState<T>>({
-    data: [],
-    loading: true,
-    error: null,
+  const [state, setState] = React.useState<ApiState<T>>(() => {
+    const mem = MEMORY_CACHE.get(url) as CacheEntry<T> | undefined;
+    if (mem) {
+      return {
+        data: mem.data,
+        loading: false,
+        error: null,
+        storageMode: mem.storageMode,
+      };
+    }
+    return {
+      data: [],
+      loading: true,
+      error: null,
+    };
   });
 
   React.useEffect(() => {
-    const controller = new AbortController();
+    let active = true;
+
+    const mem = MEMORY_CACHE.get(url) as CacheEntry<T> | undefined;
+    const isFresh = Boolean(mem && !refreshMs && Date.now() - mem.fetchedAt < staleTimeMs);
 
     const load = async () => {
       try {
-        const res = await fetch(url, { signal: controller.signal, cache: "no-store" });
-        if (!res.ok) throw new Error(`Request failed (${res.status})`);
-        const json = await res.json();
-        const items = (json[key] as T[]) ?? [];
-        writeCachedList(cacheKey, items);
+        const entry = await fetchDeduplicated<T>(url, key, Boolean(refreshMs), cacheKey);
+        if (!active) return;
         setState({
-          data: items,
+          data: entry.data,
           loading: false,
           error: null,
-          storageMode: json.storageMode,
+          storageMode: entry.storageMode,
         });
       } catch (err) {
-        if (controller.signal.aborted) return;
+        if (!active) return;
         const cached = readCachedList<T>(cacheKey);
         setState((prev) => ({
           data: cached ?? prev.data,
@@ -77,27 +138,50 @@ function useApiList<T>(
       }
     };
 
-    load();
-    const timer = refreshMs ? setInterval(load, refreshMs) : undefined;
-    return () => {
-      controller.abort();
-      if (timer) clearInterval(timer);
+    if (!isFresh) {
+      void load();
+    }
+
+    if (!refreshMs) {
+      return () => {
+        active = false;
+      };
+    }
+
+    const timer = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        return;
+      }
+      void load();
+    }, refreshMs);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        void load();
+      }
     };
-  }, [url, key, refreshMs, cacheKey]);
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      active = false;
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [url, key, refreshMs, cacheKey, staleTimeMs]);
 
   return state;
 }
 
 export function useLiveBuses(refreshMs = 10000) {
-  return useApiList<LiveBus>("/api/buses/live", "buses", refreshMs);
+  return useApiList<LiveBus>("/api/buses/live", "buses", refreshMs, undefined, 0);
 }
 
 export function useRoutes() {
-  return useApiList<BusRoute>("/api/routes", "routes", undefined, "pravah.cache.routes");
+  return useApiList<BusRoute>("/api/routes", "routes", undefined, "pravah.cache.v2.routes", 300_000);
 }
 
 export function useStops() {
-  return useApiList<BusStop>("/api/stops", "stops", undefined, "pravah.cache.stops");
+  return useApiList<BusStop>("/api/stops", "stops", undefined, "pravah.cache.v2.stops", 300_000);
 }
 
 export interface IoTTelemetryFeed {
@@ -137,10 +221,20 @@ export function useIoTDevices(refreshMs = 5000): IoTTelemetryFeed {
     };
 
     void load();
-    const timer = setInterval(() => void load(), refreshMs);
+    const timer = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      void load();
+    }, refreshMs);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
     return () => {
       controller.abort();
       clearInterval(timer);
+      document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, [refreshMs, tick]);
 
@@ -173,8 +267,20 @@ export function useSystemHealth(refreshMs = 15000) {
       }
     };
     void load();
-    const timer = setInterval(() => void load(), refreshMs);
-    return () => clearInterval(timer);
+    const timer = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      void load();
+    }, refreshMs);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
   }, [refreshMs]);
 
   return health;

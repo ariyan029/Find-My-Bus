@@ -1,4 +1,4 @@
-const CACHE_NAME = "pravah-offline-v1";
+const CACHE_NAME = "pravah-offline-v2";
 const STATIC_ASSETS = [
   "/",
   "/search",
@@ -43,7 +43,30 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Network-first with cache fallback for routes, stops, and pages.
+  // Stale-While-Revalidate for catalog APIs and immutable/static media assets.
+  if (
+    url.pathname.startsWith("/api/routes") ||
+    url.pathname.startsWith("/api/stops") ||
+    url.pathname.startsWith("/_next/static/") ||
+    /\.(png|jpg|jpeg|svg|webp|avif|ico|json)$/.test(url.pathname)
+  ) {
+    event.respondWith(
+      caches.open(CACHE_NAME).then((cache) =>
+        cache.match(request).then((cached) => {
+          const networkFetch = fetch(request)
+            .then((res) => {
+              if (res.ok) cache.put(request, res.clone()).catch(() => {});
+              return res;
+            })
+            .catch(() => cached);
+          return cached || networkFetch;
+        })
+      )
+    );
+    return;
+  }
+
+  // Network-first with cache fallback for HTML pages.
   event.respondWith(
     fetch(request)
       .then((res) => {

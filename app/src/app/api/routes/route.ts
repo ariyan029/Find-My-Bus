@@ -6,9 +6,16 @@ export async function GET(request: NextRequest) {
   const query = searchParams.get("q") || undefined;
   
   const routes = await getRoutes(query);
-  return NextResponse.json({
-    success: true,
-    count: routes.length,
-    routes,
-  });
+  return NextResponse.json(
+    {
+      success: true,
+      count: routes.length,
+      routes,
+    },
+    {
+      headers: {
+        "Cache-Control": "public, max-age=300, stale-while-revalidate=3600",
+      },
+    }
+  );
 }

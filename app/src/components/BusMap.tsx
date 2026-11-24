@@ -23,14 +23,21 @@ function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 }
 
-function busIcon(bus: LiveBus, selected: boolean): L.DivIcon {
+const ICON_CACHE = new Map<string, L.DivIcon>();
+
+function getBusIcon(bus: LiveBus, selected: boolean): L.DivIcon {
+  const roundedHeading = Math.round(bus.heading / 10) * 10;
+  const cacheKey = `${bus.busNumber}|${bus.status}|${selected ? 1 : 0}|${roundedHeading}`;
+  const cached = ICON_CACHE.get(cacheKey);
+  if (cached) return cached;
+
   const tone =
     bus.status === "DELAYED"
       ? "#CC5500"
       : bus.status === "CONGESTED"
         ? "#B25900"
         : "#4E342E";
-  return L.divIcon({
+  const icon = L.divIcon({
     className: "",
     iconSize: [0, 0],
     html: `<div style="
@@ -42,24 +49,90 @@ function busIcon(bus: LiveBus, selected: boolean): L.DivIcon {
       border: 2px solid ${selected ? "#CC5500" : "rgba(248, 244, 231, 0.7)"};
       box-shadow: 0 2px 8px rgba(78, 52, 46, 0.35)${selected ? `, 0 0 0 4px rgba(204, 85, 0, 0.35)` : ""};
     ">
-      <span style="display:inline-block;transform:rotate(${bus.heading}deg);color:#CC5500">▲</span>${escapeHtml(bus.busNumber)}
+      <span style="display:inline-block;transform:rotate(${roundedHeading}deg);color:#CC5500">▲</span>${escapeHtml(bus.busNumber)}
     </div>`,
   });
+
+  if (ICON_CACHE.size > 200) ICON_CACHE.clear();
+  ICON_CACHE.set(cacheKey, icon);
+  return icon;
 }
 
-/** Pan to the selected bus whenever the selection or live coordinates change. */
+/** Pan to the selected bus only when selection changes or coordinates move noticeably. */
 function FollowSelected({ bus }: { bus?: LiveBus }) {
   const map = useMap();
   const lat = bus?.currentLat;
   const lng = bus?.currentLng;
   const id = bus?.id;
+  const lastTargetRef = React.useRef<{ id: string; lat: number; lng: number } | null>(null);
+
   React.useEffect(() => {
-    if (lat != null && lng != null) {
-      map.flyTo([lat, lng], Math.max(map.getZoom(), 13), { duration: 0.6 });
-    }
+    if (id == null || lat == null || lng == null) return;
+    const prev = lastTargetRef.current;
+    const movedEnough =
+      !prev ||
+      prev.id !== id ||
+      Math.abs(prev.lat - lat) > 0.0002 ||
+      Math.abs(prev.lng - lng) > 0.0002;
+    if (!movedEnough) return;
+
+    lastTargetRef.current = { id, lat, lng };
+    map.flyTo([lat, lng], Math.max(map.getZoom(), 13), { duration: 0.55 });
   }, [map, id, lat, lng]);
   return null;
 }
+
+const STOP_PATH_OPTIONS = {
+  color: "#4E342E",
+  weight: 1.5,
+  fillColor: "#F8F4E7",
+  fillOpacity: 0.9,
+} as const;
+
+const StopsLayer = React.memo(function StopsLayer({ stops }: { stops: BusStop[] }) {
+  return (
+    <>
+      {stops.map((stop) => (
+        <CircleMarker key={stop.id} center={[stop.lat, stop.lng]} radius={4} pathOptions={STOP_PATH_OPTIONS}>
+          <Tooltip direction="top">
+            {stop.name}
+            {stop.bengaliName && stop.bengaliName !== stop.name ? ` (${stop.bengaliName})` : ""}
+          </Tooltip>
+        </CircleMarker>
+      ))}
+    </>
+  );
+});
+
+const BusMarker = React.memo(function BusMarker({
+  bus,
+  selected,
+  onSelectBus,
+}: {
+  bus: LiveBus;
+  selected: boolean;
+  onSelectBus?: (busId: string) => void;
+}) {
+  return (
+    <Marker
+      position={[bus.currentLat, bus.currentLng]}
+      icon={getBusIcon(bus, selected)}
+      zIndexOffset={selected ? 1000 : 0}
+      keyboard
+      title={`${bus.busNumber} toward ${bus.destination}`}
+      eventHandlers={{ click: () => onSelectBus?.(bus.id) }}
+    >
+      <Tooltip direction="top" offset={[0, -10]}>
+        <strong>{bus.busNumber}</strong> → {bus.destination}
+        <br />
+        Next: {bus.nextStop} ({bus.etaNextStopMins}m)
+        <br />
+        {BUS_STATUS_LABELS[bus.status]} · {OCCUPANCY_LABELS[bus.occupancy]} ·{" "}
+        {TELEMETRY_SOURCE_LABELS[bus.telemetrySource] || "Live"}
+      </Tooltip>
+    </Marker>
+  );
+});
 
 const TILE_PROVIDERS = [
   {
@@ -78,7 +151,10 @@ const TILE_PROVIDERS = [
 ] as const;
 
 export default function BusMap({ buses, stops, selectedBusId, onSelectBus }: BusMapProps) {
-  const selected = buses.find((b) => b.id === selectedBusId);
+  const selected = React.useMemo(
+    () => buses.find((b) => b.id === selectedBusId),
+    [buses, selectedBusId]
+  );
   const [tileProviderIdx, setTileProviderIdx] = React.useState(0);
   const provider = TILE_PROVIDERS[tileProviderIdx];
 
@@ -88,6 +164,7 @@ export default function BusMap({ buses, stops, selectedBusId, onSelectBus }: Bus
         center={KOLKATA_CENTER}
         zoom={12}
         scrollWheelZoom={true}
+        preferCanvas={true}
         className="h-full w-full bg-[#F8F4E7]"
         aria-label="Map of live buses and stops"
       >
@@ -106,39 +183,15 @@ export default function BusMap({ buses, stops, selectedBusId, onSelectBus }: Bus
           }}
         />
 
-        {stops.map((stop) => (
-          <CircleMarker
-            key={stop.id}
-            center={[stop.lat, stop.lng]}
-            radius={4}
-            pathOptions={{ color: "#4E342E", weight: 1.5, fillColor: "#F8F4E7", fillOpacity: 0.9 }}
-          >
-            <Tooltip direction="top">
-              {stop.name}
-              {stop.bengaliName && stop.bengaliName !== stop.name ? ` (${stop.bengaliName})` : ""}
-            </Tooltip>
-          </CircleMarker>
-        ))}
+        <StopsLayer stops={stops} />
 
         {buses.map((bus) => (
-          <Marker
+          <BusMarker
             key={bus.id}
-            position={[bus.currentLat, bus.currentLng]}
-            icon={busIcon(bus, bus.id === selectedBusId)}
-            zIndexOffset={bus.id === selectedBusId ? 1000 : 0}
-            keyboard
-            title={`${bus.busNumber} toward ${bus.destination}`}
-            eventHandlers={{ click: () => onSelectBus?.(bus.id) }}
-          >
-            <Tooltip direction="top" offset={[0, -10]}>
-              <strong>{bus.busNumber}</strong> → {bus.destination}
-              <br />
-              Next: {bus.nextStop} ({bus.etaNextStopMins}m)
-              <br />
-              {BUS_STATUS_LABELS[bus.status]} · {OCCUPANCY_LABELS[bus.occupancy]} ·{" "}
-              {TELEMETRY_SOURCE_LABELS[bus.telemetrySource] || "Live"}
-            </Tooltip>
-          </Marker>
+            bus={bus}
+            selected={bus.id === selectedBusId}
+            onSelectBus={onSelectBus}
+          />
         ))}
 
         <FollowSelected bus={selected} />
