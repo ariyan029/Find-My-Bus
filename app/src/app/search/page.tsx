@@ -207,12 +207,13 @@ function SearchPageContent({
   }, [routes, searchWord, filterType]);
 
   const popularStops = [
+    "Barasat Chapadali",
     "Howrah Station",
     "Esplanade Bus Terminus",
     "Salt Lake Sector V",
     "Netaji Subhash Airport (Gate 1)",
+    "Dakshineswar",
     "Gariahat Junction",
-    "Jadavpur 8B Bus Stand",
   ];
 
   return (

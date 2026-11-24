@@ -69,6 +69,30 @@ test("findJourneys returns direct and 1-transfer Kolkata routes with schedule ou
   assert.ok(offHoursRes.direct.some((d) => d.route.routeNumber === "45"));
   assert.equal(offHoursRes.direct[0].schedule.inServiceNow, false);
   assert.equal(offHoursRes.direct[0].schedule.trafficNote, "Next Morning Service");
+
+  // Barasat-origin routes & granular stops
+  const barasatHowrah = findJourneys("Champadali", "Howrah", KOLKATA_ROUTES, KOLKATA_STOPS, {
+    departureTime: morningPeak,
+  });
+  assert.ok(barasatHowrah.direct.some((d) => d.route.routeNumber === "L238"));
+  assert.ok(barasatHowrah.direct.some((d) => d.route.routeNumber === "AC-2"));
+
+  const granularL238 = findJourneys("Sethpukur", "Kestopur", KOLKATA_ROUTES, KOLKATA_STOPS, {
+    departureTime: morningPeak,
+  });
+  assert.ok(granularL238.direct.some((d) => d.route.routeNumber === "L238"));
+
+  const barasatDks = findJourneys("Barasat", "Dakshineswar", KOLKATA_ROUTES, KOLKATA_STOPS, {
+    departureTime: morningPeak,
+  });
+  assert.ok(barasatDks.direct.some((d) => d.route.routeNumber === "DN-2"));
+  assert.ok(barasatDks.direct.some((d) => d.route.routeNumber === "DN-43"));
+
+  const barasatGaria = findJourneys("Barasat", "Garia", KOLKATA_ROUTES, KOLKATA_STOPS, {
+    departureTime: morningPeak,
+  });
+  assert.ok(barasatGaria.direct.some((d) => d.route.routeNumber === "S-37"));
+  assert.ok(barasatGaria.direct.some((d) => d.route.routeNumber === "AC-37"));
 });
 
 test("ingestMemoryTelemetry enforces ESP32/Driver priority over passive crowd pings", () => {
