@@ -210,6 +210,7 @@ function SearchPageContent({
     "Barasat Chapadali",
     "Howrah Station",
     "Esplanade Bus Terminus",
+    "Sealdah Station",
     "Salt Lake Sector V",
     "Netaji Subhash Airport (Gate 1)",
     "Dakshineswar",

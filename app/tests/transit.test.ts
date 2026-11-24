@@ -93,6 +93,32 @@ test("findJourneys returns direct and 1-transfer Kolkata routes with schedule ou
   });
   assert.ok(barasatGaria.direct.some((d) => d.route.routeNumber === "S-37"));
   assert.ok(barasatGaria.direct.some((d) => d.route.routeNumber === "AC-37"));
+
+  // Esplanade, Sealdah & Howrah across Kolkata
+  const espGaria = findJourneys("Esplanade", "Garia", KOLKATA_ROUTES, KOLKATA_STOPS, {
+    departureTime: morningPeak,
+  });
+  assert.ok(espGaria.direct.some((d) => d.route.routeNumber === "80A"));
+  assert.ok(espGaria.direct.some((d) => d.route.routeNumber === "S-5"));
+  assert.ok(espGaria.direct.some((d) => d.route.routeNumber === "AC-5"));
+
+  const sdahGolfGreen = findJourneys("Sealdah", "Golf Green", KOLKATA_ROUTES, KOLKATA_STOPS, {
+    departureTime: morningPeak,
+  });
+  assert.ok(sdahGolfGreen.direct.some((d) => d.route.routeNumber === "223"));
+  assert.ok(sdahGolfGreen.direct.some((d) => d.route.routeNumber === "240"));
+
+  const hwhBelur = findJourneys("Howrah", "Belur Math", KOLKATA_ROUTES, KOLKATA_STOPS, {
+    departureTime: morningPeak,
+  });
+  assert.ok(hwhBelur.direct.some((d) => d.route.routeNumber === "54"));
+  assert.ok(hwhBelur.direct.some((d) => d.route.routeNumber === "56"));
+
+  const hwhSectorV = findJourneys("Howrah", "Sector V", KOLKATA_ROUTES, KOLKATA_STOPS, {
+    departureTime: morningPeak,
+  });
+  assert.ok(hwhSectorV.direct.some((d) => d.route.routeNumber === "71"));
+  assert.ok(hwhSectorV.direct.some((d) => d.route.routeNumber === "44A"));
 });
 
 test("ingestMemoryTelemetry enforces ESP32/Driver priority over passive crowd pings", () => {
