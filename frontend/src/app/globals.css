@@ -119,3 +119,31 @@ body {
 .map-tiles-dark {
   filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9) saturate(0.6);
 }
+
+/* ─── PRAVAH 40-35-25 Brand Triad Surfaces ─── */
+.surface-chocolate-hero {
+  background: linear-gradient(135deg, #4E342E 0%, #3E2823 100%);
+  color: #F8F4E7;
+  border: 1px solid rgba(204, 85, 0, 0.28);
+  box-shadow: 0 12px 36px -10px rgba(78, 52, 46, 0.32);
+}
+
+.surface-chocolate-card {
+  background: #4E342E;
+  color: #F8F4E7;
+  border: 1px solid rgba(248, 244, 231, 0.14);
+  box-shadow: 0 8px 24px -8px rgba(78, 52, 46, 0.22);
+}
+
+.surface-cream-card {
+  background: rgba(255, 255, 255, 0.76);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(78, 52, 46, 0.15);
+  box-shadow: 0 8px 24px -6px rgba(78, 52, 46, 0.06);
+}
+
+.surface-orange-glow {
+  box-shadow: 0 4px 16px 0 rgba(204, 85, 0, 0.38);
+}
+

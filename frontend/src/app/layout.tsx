@@ -21,7 +21,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#F8F4E7",
+  themeColor: "#4E342E",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -30,36 +30,39 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-[#F8F4E7] text-[#4E342E] flex flex-col font-sans selection:bg-[#CC5500]/25 selection:text-[#4E342E] antialiased">
-        {/* Ambient Warm Gradient Backdrop */}
-        <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(204,85,0,0.06),rgba(248,244,231,0))] z-0" />
+      <body className="min-h-screen bg-[#F8F4E7] text-[#4E342E] flex flex-col font-sans selection:bg-[#CC5500] selection:text-white antialiased">
+        {/* Subtle Ambient Radial Glow */}
+        <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(204,85,0,0.08),rgba(248,244,231,0))] z-0" />
         
-        {/* Responsive Global Navigation */}
+        {/* Responsive Global Dark Chocolate Navigation */}
         <Navbar />
 
-        {/* Responsive Content Shell */}
-        <main className="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 z-10 pb-20 md:pb-6 flex flex-col">
+        {/* Responsive Content Shell on Warm Cream Canvas */}
+        <main className="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-7 z-10 pb-24 md:pb-8 flex flex-col">
           {children}
         </main>
 
-        {/* Desktop / Tablet Minimal Footer */}
-        <footer className="hidden md:block w-full border-t border-[#4E342E]/10 bg-[#F8F4E7]/80 backdrop-blur-md py-4 mt-auto z-10">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between text-xs text-[#7E655D]">
+        {/* Desktop / Tablet Anchored Chocolate Brown Footer */}
+        <footer className="hidden md:block w-full border-t border-[#CC5500]/25 bg-[#4E342E] text-[#F8F4E7] py-5 mt-auto z-10 shadow-inner">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between text-xs">
             <div className="flex items-center gap-3">
-              <Image
-                src="/pravah-logo.png"
-                alt="PRAVAH"
-                width={86}
-                height={26}
-                className="h-5 w-auto object-contain opacity-85"
-              />
-              <span className="text-[#4E342E]/20">|</span>
-              <span>Real-Time Kolkata Transit Network</span>
+              <div className="bg-[#F8F4E7] px-2 py-0.5 rounded-lg flex items-center shadow-sm">
+                <Image
+                  src="/pravah-logo.png"
+                  alt="PRAVAH"
+                  width={82}
+                  height={24}
+                  className="h-4.5 w-auto object-contain"
+                />
+              </div>
+              <span className="text-[#F8F4E7]/30">|</span>
+              <span className="text-[#F8F4E7]/80 font-medium">Kolkata Urban Mobility & Telemetry Network</span>
             </div>
+            
             <div className="flex items-center gap-4 text-[11px] font-medium">
-              <span>GPS Telemetry v1.0</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-              <span className="text-emerald-800 font-semibold">All Systems Operational</span>
+              <span className="text-[#F8F4E7]/70">Production v1.0.0</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-[#CC5500] animate-pulse" />
+              <span className="text-[#CC5500] font-bold">Telemetry Live & Connected</span>
             </div>
           </div>
         </footer>

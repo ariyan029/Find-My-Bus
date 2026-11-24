@@ -68,24 +68,27 @@ export default function SearchPage() {
 
   return (
     <div className="flex-1 flex flex-col space-y-5">
-      {/* ─── Top Header Banner ─── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/70 backdrop-blur-md p-4 rounded-2xl border border-[#4E342E]/12 shadow-[0_4px_20px_-4px_rgba(78,52,46,0.04)]">
+      
+      {/* ─── Top Header Banner (35% Chocolate Anchor + 25% Burnt Orange Energy) ─── */}
+      <div className="surface-chocolate-hero p-5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-lg font-black tracking-tight text-[#4E342E]">Route Navigator & Planner</h1>
-            <Badge variant="outline" className="border-[#CC5500]/30 text-[#CC5500] bg-[#CC5500]/8 text-xs font-semibold">
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-xl font-black tracking-tight text-[#F8F4E7]">
+              Route Navigator & Planner
+            </h1>
+            <Badge className="bg-[#CC5500] text-white text-[10px] font-extrabold uppercase px-2.5 py-0.5 border-0 shadow-sm">
               {routes.length} Verified Lines
             </Badge>
           </div>
-          <p className="text-xs text-[#7E655D] mt-0.5">
-            Plan direct corridors and connecting journeys across the Kolkata Metropolitan Region
+          <p className="text-xs text-[#F8F4E7]/80 mt-1 max-w-xl leading-relaxed">
+            Plan direct corridors, cross-river express lines, and urban junction connections
           </p>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#4E342E]/6 border border-[#4E342E]/10 text-xs text-[#4E342E] font-medium">
-            <Compass className="h-3.5 w-3.5 text-[#CC5500]" />
-            <span>Kolkata Urban Mobility</span>
+        <div className="flex items-center gap-2.5 self-start sm:self-auto shrink-0">
+          <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#CC5500]/25 border border-[#CC5500]/45 text-[#F8F4E7] text-xs font-bold shadow-inner">
+            <Compass className="h-4 w-4 text-[#CC5500]" />
+            <span>Kolkata Transit Network</span>
           </div>
         </div>
       </div>
@@ -97,49 +100,45 @@ export default function SearchPage() {
         <div className="lg:col-span-7 space-y-4">
           
           {/* Origin ⇄ Destination Card */}
-          <Card className="border-[#4E342E]/14 bg-white/80 backdrop-blur-xl shadow-sm">
-            <CardHeader className="p-4 pb-2 border-b border-[#4E342E]/8">
-              <CardTitle className="text-xs font-black uppercase tracking-wider text-[#4E342E] flex items-center gap-2">
-                <Navigation className="h-3.5 w-3.5 text-[#CC5500]" />
+          <div className="rounded-2xl overflow-hidden border border-[#4E342E]/20 bg-white/85 backdrop-blur-xl shadow-[0_10px_30px_-8px_rgba(78,52,46,0.12)]">
+            <div className="bg-[#4E342E] text-[#F8F4E7] p-3.5 px-4 border-b border-[#CC5500]/30 flex items-center justify-between">
+              <span className="text-xs font-black uppercase tracking-wider text-[#F8F4E7] flex items-center gap-2">
+                <Navigation className="h-4 w-4 text-[#CC5500]" />
                 Journey Origin & Destination
-              </CardTitle>
-            </CardHeader>
+              </span>
+              <span className="text-[10px] text-[#F8F4E7]/70 font-mono">Real-Time Routing</span>
+            </div>
 
-            <CardContent className="p-4 space-y-3.5">
+            <div className="p-4.5 space-y-3.5 bg-[#F8F4E7]/80">
               <div className="flex items-center gap-3">
                 <div className="flex flex-col items-center gap-1">
-                  <div className="w-2.5 h-2.5 rounded-full bg-[#CC5500] ring-2 ring-[#CC5500]/30" />
-                  <div className="w-0.5 h-8 bg-[#4E342E]/18" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-[#4E342E] ring-2 ring-[#4E342E]/25" />
+                  <div className="w-3 h-3 rounded-full bg-[#CC5500] ring-4 ring-[#CC5500]/25 shadow-sm" />
+                  <div className="w-0.5 h-9 bg-[#CC5500]/40" />
+                  <div className="w-3 h-3 rounded-full bg-[#4E342E] ring-4 ring-[#4E342E]/20 shadow-sm" />
                 </div>
 
                 <div className="flex-1 space-y-2">
-                  <div className="relative">
-                    <Input
-                      value={sourceStop}
-                      onChange={(e) => setSourceStop(e.target.value)}
-                      placeholder="Origin stop (e.g. Howrah Station)"
-                      className="bg-white/90 border-[#4E342E]/18 h-9 text-xs focus-visible:ring-[#CC5500]"
-                    />
-                  </div>
-                  <div className="relative">
-                    <Input
-                      value={destStop}
-                      onChange={(e) => setDestStop(e.target.value)}
-                      placeholder="Destination (e.g. Salt Lake Sector V)"
-                      className="bg-white/90 border-[#4E342E]/18 h-9 text-xs focus-visible:ring-[#CC5500]"
-                    />
-                  </div>
+                  <Input
+                    value={sourceStop}
+                    onChange={(e) => setSourceStop(e.target.value)}
+                    placeholder="Origin stop (e.g. Howrah Station)"
+                    className="bg-white border-[#4E342E]/20 h-10 text-xs text-[#4E342E] focus-visible:ring-2 focus-visible:ring-[#CC5500] focus-visible:border-[#CC5500] shadow-sm rounded-xl"
+                  />
+                  <Input
+                    value={destStop}
+                    onChange={(e) => setDestStop(e.target.value)}
+                    placeholder="Destination (e.g. Salt Lake Sector V)"
+                    className="bg-white border-[#4E342E]/20 h-10 text-xs text-[#4E342E] focus-visible:ring-2 focus-visible:ring-[#CC5500] focus-visible:border-[#CC5500] shadow-sm rounded-xl"
+                  />
                 </div>
 
                 <Button
                   size="icon"
-                  variant="outline"
                   onClick={handleSwap}
-                  className="h-9 w-9 shrink-0 border-[#4E342E]/20 bg-white hover:bg-[#F8F4E7] text-[#4E342E] shadow-sm"
+                  className="h-10 w-10 shrink-0 bg-[#CC5500] hover:bg-[#B34700] text-white shadow-[0_4px_12px_rgba(204,85,0,0.35)] rounded-xl transition-transform active:scale-90"
                   title="Swap Origin and Destination"
                 >
-                  <ArrowUpDown className="h-4 w-4 text-[#4E342E]" />
+                  <ArrowUpDown className="h-4 w-4" />
                 </Button>
               </div>
 
@@ -154,101 +153,122 @@ export default function SearchPage() {
                       if (!sourceStop) setSourceStop(stopName);
                       else setDestStop(stopName);
                     }}
-                    className="px-2 py-0.5 rounded-lg bg-[#4E342E]/6 hover:bg-[#CC5500]/12 hover:text-[#CC5500] border border-[#4E342E]/10 text-[10px] font-semibold text-[#4E342E] transition-colors"
+                    className="px-2.5 py-1 rounded-lg bg-[#4E342E]/8 hover:bg-[#CC5500] hover:text-white border border-[#4E342E]/14 text-[10px] font-bold text-[#4E342E] transition-all cursor-pointer shadow-xs"
                   >
                     {stopName}
                   </button>
                 ))}
               </div>
 
-              <Button className="w-full bg-[#CC5500] hover:bg-[#B34A00] text-[#F8F4E7] text-xs font-bold h-9 shadow-[0_4px_14px_0_rgba(204,85,0,0.25)]">
+              <Button className="w-full bg-[#CC5500] hover:bg-[#B34700] text-white text-xs font-bold h-10 shadow-[0_4px_16px_rgba(204,85,0,0.35)] rounded-xl">
                 Find Direct & Connecting Buses
               </Button>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          {/* Search bar & Type filter */}
+          {/* Search bar & Type filter (Cream input + Chocolate Capsule Tabs) */}
           <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center justify-between">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#7E655D]" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#7E655D]" />
               <Input
                 value={searchWord}
                 onChange={(e) => setSearchWord(e.target.value)}
                 placeholder="Filter route number or terminal..."
-                className="pl-9 bg-white/80 border-[#4E342E]/18 h-9 text-xs focus-visible:ring-[#CC5500]"
+                className="pl-9 bg-white/90 border-[#4E342E]/20 h-9.5 text-xs text-[#4E342E] focus-visible:ring-2 focus-visible:ring-[#CC5500] focus-visible:border-[#CC5500] rounded-xl shadow-xs"
               />
             </div>
 
             <Tabs value={filterType} onValueChange={setFilterType} className="w-full sm:w-auto">
-              <TabsList className="grid grid-cols-4 sm:flex w-full sm:w-auto bg-[#4E342E]/8 border border-[#4E342E]/12 h-9">
-                <TabsTrigger value="ALL" className="text-xs px-2.5">All</TabsTrigger>
-                <TabsTrigger value="AC" className="text-xs px-2.5">AC</TabsTrigger>
-                <TabsTrigger value="ORDINARY" className="text-xs px-2.5">Ordinary</TabsTrigger>
-                <TabsTrigger value="MINIBUS" className="text-xs px-2.5">Minibus</TabsTrigger>
+              <TabsList className="grid grid-cols-4 sm:flex w-full sm:w-auto bg-[#4E342E] border border-[#CC5500]/25 h-9.5 p-1 rounded-xl shadow-inner text-[#F8F4E7]">
+                <TabsTrigger 
+                  value="ALL" 
+                  className="text-xs px-3 data-[state=active]:bg-[#CC5500] data-[state=active]:text-white data-[state=active]:font-bold data-[state=active]:shadow-sm text-[#F8F4E7]/80 hover:text-white"
+                >
+                  All
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="AC" 
+                  className="text-xs px-3 data-[state=active]:bg-[#CC5500] data-[state=active]:text-white data-[state=active]:font-bold data-[state=active]:shadow-sm text-[#F8F4E7]/80 hover:text-white"
+                >
+                  AC
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="ORDINARY" 
+                  className="text-xs px-3 data-[state=active]:bg-[#CC5500] data-[state=active]:text-white data-[state=active]:font-bold data-[state=active]:shadow-sm text-[#F8F4E7]/80 hover:text-white"
+                >
+                  Ordinary
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="MINIBUS" 
+                  className="text-xs px-3 data-[state=active]:bg-[#CC5500] data-[state=active]:text-white data-[state=active]:font-bold data-[state=active]:shadow-sm text-[#F8F4E7]/80 hover:text-white"
+                >
+                  Minibus
+                </TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
 
-          {/* Route Listing */}
+          {/* Route Listing (Alternating Chocolate and Cream cards) */}
           <div className="space-y-2.5">
             {filteredRoutes.map((route) => {
               const isSelected = selectedRoute?.id === route.id;
               return (
-                <Card
+                <div
                   key={route.id}
                   onClick={() => setSelectedRoute(route)}
-                  className={`border transition-all cursor-pointer ${
+                  className={`p-3.5 rounded-xl border transition-all cursor-pointer space-y-2 ${
                     isSelected
-                      ? "border-[#CC5500] bg-[#CC5500]/8 shadow-[0_6px_20px_rgba(204,85,0,0.12)]"
-                      : "border-[#4E342E]/12 bg-white/70 hover:border-[#4E342E]/25 hover:bg-white/95 shadow-sm"
+                      ? "bg-[#4E342E] text-[#F8F4E7] border-[#CC5500] border-l-4 border-l-[#CC5500] shadow-[0_6px_20px_rgba(78,52,46,0.25)] scale-[1.01]"
+                      : "bg-white/80 hover:bg-white text-[#4E342E] border-[#4E342E]/14 hover:border-[#CC5500]/40 shadow-sm"
                   }`}
                 >
-                  <CardContent className="p-3.5 space-y-2">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <Badge
-                            variant={
-                              route.busType === "AC_EXPRESS"
-                                ? "ac"
-                                : route.busType === "MINIBUS"
-                                ? "minibus"
-                                : "ordinary"
-                            }
-                            className="text-xs font-bold"
-                          >
-                            {route.routeNumber}
-                          </Badge>
-                          <span className="text-[11px] text-[#7E655D] font-semibold">
-                            {route.operator}
-                          </span>
-                        </div>
-                        <h3 className="text-xs font-bold text-[#4E342E] mt-1">
-                          {route.source} ⇄ {route.destination}
-                        </h3>
-                      </div>
-
-                      <div className="text-right">
-                        <span className="text-xs font-mono font-bold text-[#4E342E] tabular-nums">
-                          ₹{route.fareMin} - ₹{route.fareMax}
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-black px-2 py-0.5 rounded-md ${
+                          route.busType === "AC_EXPRESS"
+                            ? "bg-[#CC5500] text-white"
+                            : route.busType === "MINIBUS"
+                            ? "bg-[#B25900] text-white"
+                            : isSelected
+                            ? "bg-[#CC5500]/30 text-white border border-[#CC5500]/50"
+                            : "bg-[#4E342E]/12 text-[#4E342E]"
+                        }`}>
+                          {route.routeNumber}
                         </span>
-                        <span className="text-[10px] text-[#7E655D] block">Est. Fare</span>
+                        <span className={`text-[11px] font-semibold ${isSelected ? "text-[#F8F4E7]/70" : "text-[#7E655D]"}`}>
+                          {route.operator}
+                        </span>
                       </div>
+                      <h3 className={`text-xs font-bold mt-1.5 ${isSelected ? "text-white" : "text-[#4E342E]"}`}>
+                        {route.source} ⇄ {route.destination}
+                      </h3>
                     </div>
 
-                    <div className="flex items-center justify-between text-[11px] text-[#7E655D] pt-1.5 border-t border-[#4E342E]/10">
-                      <div className="flex items-center gap-1 font-medium">
-                        <Clock className="h-3 w-3 text-[#7E655D]" />
-                        <span>Every {route.frequencyMins} mins</span>
-                      </div>
-                      <div className="flex items-center gap-1 font-medium font-mono tabular-nums">
-                        <span>{route.totalStops} Stops</span>
-                        <span>·</span>
-                        <span>{route.avgTripMins} mins trip</span>
-                      </div>
+                    <div className="text-right">
+                      <span className="text-xs font-mono font-black text-[#CC5500] tabular-nums block">
+                        ₹{route.fareMin} - ₹{route.fareMax}
+                      </span>
+                      <span className={`text-[10px] block ${isSelected ? "text-[#F8F4E7]/70" : "text-[#7E655D]"}`}>
+                        Est. Fare
+                      </span>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+
+                  <div className={`flex items-center justify-between text-[11px] pt-1.5 border-t ${
+                    isSelected ? "border-white/15 text-[#F8F4E7]/80" : "border-[#4E342E]/10 text-[#7E655D]"
+                  }`}>
+                    <div className="flex items-center gap-1 font-medium">
+                      <Clock className="h-3 w-3 text-[#CC5500]" />
+                      <span>Every {route.frequencyMins} mins</span>
+                    </div>
+                    <div className="flex items-center gap-1 font-medium font-mono tabular-nums">
+                      <span>{route.totalStops} Stops</span>
+                      <span>·</span>
+                      <span>{route.avgTripMins} mins trip</span>
+                    </div>
+                  </div>
+                </div>
               );
             })}
           </div>
@@ -258,41 +278,44 @@ export default function SearchPage() {
         {/* Right Column (5 cols): Selected Route Detailed Inspector */}
         <div className="lg:col-span-5 space-y-4">
           {selectedRoute ? (
-            <Card className="border-[#4E342E]/16 bg-white/80 backdrop-blur-xl shadow-sm sticky top-20">
-              <CardHeader className="p-4 pb-3 border-b border-[#4E342E]/8">
+            <div className="rounded-2xl overflow-hidden border border-[#4E342E]/20 bg-white/85 backdrop-blur-xl shadow-[0_10px_30px_-8px_rgba(78,52,46,0.15)] sticky top-20">
+              
+              {/* Dark Chocolate Header */}
+              <div className="bg-[#4E342E] text-[#F8F4E7] p-4 pb-3.5 border-b border-[#CC5500]/30">
                 <div className="flex items-start justify-between">
                   <div>
                     <div className="flex items-center gap-2">
-                      <Badge variant="default" className="text-xs font-black bg-[#CC5500] text-[#F8F4E7]">
+                      <span className="text-xs font-black bg-[#CC5500] text-white px-2.5 py-0.5 rounded-lg shadow-sm">
                         {selectedRoute.routeNumber}
-                      </Badge>
-                      <span className="text-xs font-bold text-[#4E342E]">{selectedRoute.operator}</span>
+                      </span>
+                      <span className="text-xs font-bold text-[#F8F4E7]/85">{selectedRoute.operator}</span>
                     </div>
-                    <CardTitle className="text-sm font-bold text-[#4E342E] mt-1.5">
+                    <h3 className="text-sm font-black text-[#F8F4E7] mt-2">
                       {selectedRoute.name}
-                    </CardTitle>
-                    <CardDescription className="text-xs text-[#7E655D]">
+                    </h3>
+                    <p className="text-xs text-[#F8F4E7]/75 mt-0.5">
                       {selectedRoute.source} ⇄ {selectedRoute.destination}
-                    </CardDescription>
+                    </p>
                   </div>
 
-                  <Badge variant="outline" className="text-xs font-mono font-bold text-[#4E342E] border-[#4E342E]/20 bg-white/70">
+                  <span className="text-xs font-mono font-bold text-white bg-[#CC5500]/25 border border-[#CC5500]/40 px-2.5 py-1 rounded-lg">
                     {selectedRoute.distanceKm} km
-                  </Badge>
+                  </span>
                 </div>
-              </CardHeader>
+              </div>
 
-              <CardContent className="p-4 space-y-4">
+              {/* Cream Glass Body */}
+              <div className="p-4 space-y-4 bg-[#F8F4E7]/90">
                 
                 {/* Trip Stats */}
-                <div className="grid grid-cols-3 gap-2 bg-[#4E342E]/5 p-2.5 rounded-xl border border-[#4E342E]/8 text-center">
+                <div className="grid grid-cols-3 gap-2 bg-[#4E342E]/8 p-2.5 rounded-xl border border-[#4E342E]/12 text-center">
                   <div>
                     <span className="text-[10px] text-[#7E655D] uppercase font-bold tracking-wider block">Duration</span>
                     <span className="text-xs font-bold text-[#4E342E] font-mono tabular-nums mt-0.5 block">{selectedRoute.avgTripMins}m</span>
                   </div>
                   <div>
                     <span className="text-[10px] text-[#7E655D] uppercase font-bold tracking-wider block">Cadence</span>
-                    <span className="text-xs font-bold text-[#CC5500] font-mono tabular-nums mt-0.5 block">Every {selectedRoute.frequencyMins}m</span>
+                    <span className="text-xs font-black text-[#CC5500] font-mono tabular-nums mt-0.5 block">Every {selectedRoute.frequencyMins}m</span>
                   </div>
                   <div>
                     <span className="text-[10px] text-[#7E655D] uppercase font-bold tracking-wider block">Fare Band</span>
@@ -306,7 +329,7 @@ export default function SearchPage() {
                     Sequential Station Stops ({selectedRoute.stops.length})
                   </h4>
 
-                  <div className="space-y-2 pl-3 border-l-2 border-[#CC5500]/40 ml-2 py-1">
+                  <div className="space-y-2.5 pl-3 border-l-2 border-[#CC5500] ml-2 py-1">
                     {selectedRoute.stops.map((stopName, idx) => (
                       <div key={idx} className="flex items-center gap-2.5 text-xs group">
                         <span className="w-2.5 h-2.5 rounded-full bg-[#CC5500] -ml-[17px] ring-4 ring-white shadow-sm" />
@@ -316,15 +339,15 @@ export default function SearchPage() {
                   </div>
                 </div>
 
-                <Button className="w-full bg-[#CC5500] hover:bg-[#B34A00] text-[#F8F4E7] text-xs font-bold h-9 shadow-sm">
+                <Button className="w-full bg-[#CC5500] hover:bg-[#B34700] text-white text-xs font-bold h-10 shadow-[0_4px_16px_rgba(204,85,0,0.35)] rounded-xl">
                   Track Active Buses On This Route
                 </Button>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ) : (
-            <Card className="border-[#4E342E]/14 bg-white/60 p-8 text-center text-xs text-[#7E655D]">
+            <div className="rounded-2xl border border-[#4E342E]/16 bg-white/70 p-8 text-center text-xs text-[#7E655D]">
               Select a route on the left to inspect stops sequence and schedule.
-            </Card>
+            </div>
           )}
         </div>
 
