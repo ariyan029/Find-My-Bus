@@ -173,7 +173,7 @@ Run these inside `app/`:
 - [ ] Bengali / English UI language toggle
 - [ ] Prisma migrations (replacing `init.sql`)
 
-More detail is in [`implementation_plan.md`](implementation_plan.md), [`system_architecture.md`](system_architecture.md) (long-term vision) and [`progress_saving.md`](progress_saving.md).
+More detail is in [`PROGRESS.md`](PROGRESS.md), [`implementation_plan.md`](implementation_plan.md), and [`system_architecture.md`](system_architecture.md) (long-term vision).
 
 ## 🔒 Privacy
 

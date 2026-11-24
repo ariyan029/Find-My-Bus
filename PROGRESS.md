@@ -7,9 +7,10 @@
 
 ## 1. Completed Work
 
-### Full-Stack Restructure & Core Architecture
-- Renamed `frontend/` to [`app/`](app/) to reflect that the Next.js workspace houses UI pages, REST API routes, and Prisma ORM.
-- Updated root [`package.json`](package.json), [`app/package.json`](app/package.json), [`README.md`](README.md), [`app/README.md`](app/README.md), and [`progress_saving.md`](progress_saving.md).
+### Full-Stack Restructure, Design System & Core Architecture
+- Branded as **PRAVAH — Real-Time Kolkata Transit Network** using a Chocolate Brown (`#4E342E`), Cream (`#F8F4E7`), and Burnt Orange (`#CC5500`) glassmorphism design system on Next.js 16, React 19, Tailwind CSS 4, and shadcn/ui.
+- Renamed `frontend/` to [`app/`](app/) to reflect that the Next.js workspace houses UI pages, REST API routes, and Prisma ORM (`@prisma/adapter-pg` + PostgreSQL 16 / PostGIS).
+- Updated root [`package.json`](package.json), [`app/package.json`](app/package.json), [`README.md`](README.md), and [`app/README.md`](app/README.md).
 - Added a shared process-wide live telemetry fallback store ([`app/src/lib/liveStore.ts`](app/src/lib/liveStore.ts)) so live ESP32, Driver, and Rider GPS updates work even when PostgreSQL is offline.
 
 ### Live Bus Telemetry: ESP32 IoT + Driver Mobile + Rider Crowdsourcing
@@ -53,7 +54,9 @@
 
 ## 2. What Is Left / Needs Polish / Known Bugs
 
-### Environment & Infrastructure
+### Environment, Deployment & Infrastructure
+- **Deploy Production Database:** Provision PostgreSQL 16 + PostGIS in cloud/production (currently runs via [`docker-compose.yml`](docker-compose.yml) locally with in-memory fallback when offline).
+- **End-to-End Field Testing:** Validate live GPS crowdsourcing, Driver mobile broadcast, and onboard ESP32 hardware telemetry on actual Kolkata bus routes.
 - **Node.js Version Requirement:** `prisma@7.10.1` and `@tailwindcss/node@4.3.5` require **Node.js `20.19+`, `22.12+`, or `24+`**. Running `prisma generate` or `next build` on Node `20.18.0` fails with `ERR_REQUIRE_ESM`.
 - **PostgreSQL + PostGIS Live Verification:** Database writes/queries in `db.ts` have not yet been tested against a live Docker PostgreSQL container in this environment (Docker socket was inaccessible). Existing Docker volumes initialized before the `route_stops`/`iot_devices` update will need `docker compose down -v && docker compose up -d` (or a Prisma migration) to pick up the new seed rows.
 - **Formal Prisma Migrations:** Currently relies on `docker/init.sql` instead of versioned `prisma migrate` migrations and a TypeScript seed script.
