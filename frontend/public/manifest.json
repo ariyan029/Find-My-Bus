@@ -1,7 +1,7 @@
 {
-  "name": "Where is my Bus (Kolkata)",
-  "short_name": "FindMyBus",
-  "description": "Live track your local Kolkata buses with real-time ETA.",
+  "name": "PRAVAH - Real-Time Kolkata Transit Network",
+  "short_name": "PRAVAH",
+  "description": "Live crowdsourced Kolkata bus tracking and dynamic ETAs on PRAVAH.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#F8F4E7",

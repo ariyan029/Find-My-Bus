@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import dynamic from "next/dynamic";
 import {
   Bus,
   MapPin,
@@ -11,9 +12,11 @@ import {
   ArrowRight,
   TrendingUp,
   CheckCircle2,
+  AlertCircle,
   Users,
   Gauge,
   Sparkles,
+  Map as MapIcon,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,15 +25,36 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { KOLKATA_STOPS, KOLKATA_ROUTES, ACTIVE_LIVE_BUSES, LiveBus } from "@/lib/data";
+import { useLiveBuses, useStops } from "@/lib/api";
+import { useLocationSharing } from "@/lib/useLocationSharing";
+import { BUS_STATUS_LABELS, OCCUPANCY_LABELS } from "@/lib/enums";
+
+const BusMap = dynamic(() => import("@/components/BusMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-56 rounded-2xl bg-white/50 animate-pulse border border-[#4E342E]/14 flex items-center justify-center text-xs text-[#7E655D] font-medium">
+      Loading PRAVAH Interactive Transit Map...
+    </div>
+  ),
+});
 
 export default function HomePage() {
   const [selectedCategory, setSelectedCategory] = React.useState<string>("ALL");
   const [searchQuery, setSearchQuery] = React.useState<string>("");
   const [activeBusIndex, setActiveBusIndex] = React.useState<number>(0);
-  const [isPinging, setIsPinging] = React.useState<boolean>(false);
-  const [pingSuccess, setPingSuccess] = React.useState<string | null>(null);
+  const [showMap, setShowMap] = React.useState<boolean>(true);
 
-  const currentBus: LiveBus = ACTIVE_LIVE_BUSES[activeBusIndex] || ACTIVE_LIVE_BUSES[0];
+  // Live data hooks from API with fallback
+  const { data: apiBuses } = useLiveBuses(12000);
+  const { data: apiStops } = useStops();
+  const sharing = useLocationSharing();
+
+  const liveBuses = apiBuses.length > 0 ? apiBuses : ACTIVE_LIVE_BUSES;
+  const stops = apiStops.length > 0 ? apiStops : KOLKATA_STOPS;
+
+  const currentBus: LiveBus = liveBuses[activeBusIndex] || liveBuses[0] || ACTIVE_LIVE_BUSES[0];
+  const isSharingCurrentBus = sharing.status === "sharing" && sharing.bus?.id === currentBus.id;
+  const isSharingOtherBus = sharing.status === "sharing" && !isSharingCurrentBus;
 
   const filteredRoutes = React.useMemo(() => {
     return KOLKATA_ROUTES.filter((route) => {
@@ -49,38 +73,10 @@ export default function HomePage() {
     });
   }, [searchQuery, selectedCategory]);
 
-  const handleShareLocation = async () => {
-    setIsPinging(true);
-    setPingSuccess(null);
-    try {
-      const res = await fetch("/api/crowdsource/ping", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          busNumber: currentBus.busNumber,
-          latitude: currentBus.currentLat + (Math.random() - 0.5) * 0.005,
-          longitude: currentBus.currentLng + (Math.random() - 0.5) * 0.005,
-          speedKmh: currentBus.speedKmh,
-          heading: currentBus.heading,
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setPingSuccess(`Broadcasted live GPS for ${currentBus.busNumber} (${currentBus.regNumber})`);
-        setTimeout(() => setPingSuccess(null), 4000);
-      }
-    } catch {
-      setPingSuccess(`GPS broadcast simulated for ${currentBus.busNumber}`);
-      setTimeout(() => setPingSuccess(null), 4000);
-    } finally {
-      setIsPinging(false);
-    }
-  };
-
   return (
     <div className="flex-1 flex flex-col bg-[#F8F4E7] text-[#4E342E]">
       
-      {/* ─── Top Transit Bar ─── */}
+      {/* ─── Top Transit Header ─── */}
       <div className="bg-[#F8F4E7]/90 backdrop-blur-xl border-b border-[#4E342E]/12 px-4 py-3 flex items-center justify-between sticky top-0 z-20 shadow-[0_2px_12px_rgba(78,52,46,0.03)]">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-xl bg-[#CC5500]/12 border border-[#CC5500]/30 flex items-center justify-center shadow-sm">
@@ -88,25 +84,47 @@ export default function HomePage() {
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <h1 className="text-sm font-bold tracking-tight text-[#4E342E]">Find My Bus</h1>
+              <h1 className="text-base font-black tracking-wider text-[#4E342E]">PRAVAH</h1>
               <Badge variant="outline" className="text-[10px] py-0 px-1.5 h-4 border-[#CC5500]/35 text-[#CC5500] font-semibold bg-[#CC5500]/8">
                 Kolkata
               </Badge>
             </div>
-            <p className="text-[11px] text-[#7E655D]">WBTC & CSTC Transit Network</p>
+            <p className="text-[11px] text-[#7E655D] font-medium tracking-tight">Real-Time Kolkata Transit Network</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowMap(!showMap)}
+            className="h-7 px-2 text-[11px] font-semibold gap-1 border-[#4E342E]/20"
+          >
+            <MapIcon className="h-3 w-3 text-[#CC5500]" />
+            {showMap ? "Hide Map" : "Show Map"}
+          </Button>
           <Badge variant="success" className="gap-1 text-[11px] font-semibold shadow-sm">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-            Live Network
+            Live
           </Badge>
         </div>
       </div>
 
       <div className="p-4 space-y-4">
         
+        {/* ─── Interactive Live Map ─── */}
+        {showMap && (
+          <BusMap
+            buses={liveBuses}
+            stops={stops}
+            selectedBusId={currentBus.id}
+            onSelectBus={(busId) => {
+              const idx = liveBuses.findIndex((b) => b.id === busId);
+              if (idx >= 0) setActiveBusIndex(idx);
+            }}
+          />
+        )}
+
         {/* ─── Search & Category Filtering ─── */}
         <div className="space-y-2.5">
           <div className="relative">
@@ -175,7 +193,7 @@ export default function HomePage() {
                   <Users className="h-3 w-3 text-[#7E655D]" /> Crowd
                 </div>
                 <p className="text-xs font-bold text-[#CC5500] mt-0.5">
-                  {currentBus.occupancy === "SEATS_AVAILABLE" ? "Seats Free" : "Standing Room"}
+                  {OCCUPANCY_LABELS[currentBus.occupancy] || "Seats Available"}
                 </p>
               </div>
 
@@ -195,7 +213,7 @@ export default function HomePage() {
                 <span className="font-medium">Current Corridor</span>
                 <span className="text-[11px] text-emerald-800 font-semibold flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                  On-Time Status
+                  {BUS_STATUS_LABELS[currentBus.status] || "On-Time Status"}
                 </span>
               </div>
 
@@ -204,37 +222,65 @@ export default function HomePage() {
                   <div className="h-full bg-[#CC5500] rounded-full w-2/3 transition-all duration-500 shadow-sm" />
                 </div>
                 <div className="flex justify-between text-[10px] text-[#7E655D] mt-1 font-medium">
-                  <span>Howrah Hub</span>
+                  <span>Origin</span>
                   <span className="text-[#CC5500] font-bold">{currentBus.nextStop}</span>
-                  <span>Shapoorji Terminus</span>
+                  <span>{currentBus.destination}</span>
                 </div>
               </div>
             </div>
 
             <Separator className="bg-[#4E342E]/12" />
 
-            {/* Crowdsourcing Trigger */}
+            {/* Real GPS Crowdsourcing Trigger with useLocationSharing hook */}
             <div className="flex items-center justify-between gap-2 pt-1">
               <div className="text-xs text-[#7E655D]">
                 <span className="text-[#4E342E] font-bold block">Riding this bus right now?</span>
-                <span className="text-[11px] text-[#7E655D]">Broadcast anonymous GPS to help fellow riders</span>
+                <span className="text-[11px] text-[#7E655D]">
+                  {isSharingOtherBus
+                    ? `Sharing GPS for ${sharing.bus?.busNumber} (${sharing.bus?.regNumber})`
+                    : "Share your GPS while on board to help PRAVAH commuters"}
+                </span>
               </div>
               <Button
                 size="sm"
-                variant="default"
-                onClick={handleShareLocation}
-                disabled={isPinging}
-                className="gap-1.5 text-xs font-bold bg-[#CC5500] text-[#F8F4E7] hover:bg-[#B34A00] shadow-sm shrink-0"
+                variant={isSharingCurrentBus ? "destructive" : "default"}
+                onClick={() => {
+                  if (isSharingCurrentBus) {
+                    sharing.stop();
+                  } else {
+                    sharing.start(currentBus);
+                  }
+                }}
+                disabled={isSharingOtherBus || sharing.status === "locating"}
+                className={`gap-1.5 text-xs font-bold shadow-sm shrink-0 ${
+                  !isSharingCurrentBus ? "bg-[#CC5500] text-[#F8F4E7] hover:bg-[#B34A00]" : ""
+                }`}
               >
-                <Radio className={`h-3.5 w-3.5 ${isPinging ? "animate-spin" : ""}`} />
-                {isPinging ? "Pinging..." : "Share Location"}
+                <Radio className={`h-3.5 w-3.5 ${sharing.status === "locating" ? "animate-spin" : ""}`} />
+                {sharing.status === "locating"
+                  ? "Locating..."
+                  : isSharingCurrentBus
+                  ? `Stop (${sharing.sentCount})`
+                  : "Share Location"}
               </Button>
             </div>
 
-            {pingSuccess && (
-              <div className="p-2.5 rounded-xl bg-emerald-700/12 border border-emerald-700/25 text-emerald-900 text-xs flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-700" />
-                <span className="font-medium">{pingSuccess}</span>
+            {sharing.status === "sharing" && isSharingCurrentBus && (
+              <div className="p-2.5 rounded-xl bg-emerald-700/12 border border-emerald-700/25 text-emerald-900 text-xs flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-700" />
+                  <span>
+                    Broadcasting live GPS fixes (sent {sharing.sentCount}
+                    {sharing.accuracyMeters != null ? ` · ±${Math.round(sharing.accuracyMeters)}m` : ""})
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {sharing.error && (
+              <div className="p-2.5 rounded-xl bg-red-700/12 border border-red-700/25 text-red-900 text-xs flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0 text-red-700" />
+                <span>{sharing.error}</span>
               </div>
             )}
           </CardContent>
@@ -244,13 +290,13 @@ export default function HomePage() {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-bold uppercase tracking-wider text-[#4E342E]">
-              Active Buses Tracking Now ({ACTIVE_LIVE_BUSES.length})
+              PRAVAH Live Fleet Tracking ({liveBuses.length})
             </h2>
             <span className="text-[11px] text-[#CC5500] font-semibold">Auto-updating</span>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
-            {ACTIVE_LIVE_BUSES.map((b, idx) => {
+            {liveBuses.map((b, idx) => {
               const isSelected = activeBusIndex === idx;
               return (
                 <div
@@ -286,13 +332,13 @@ export default function HomePage() {
         <div className="space-y-2.5">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-bold uppercase tracking-wider text-[#4E342E]">
-              Major Bus Hubs Nearby
+              Major Kolkata Bus Hubs Nearby
             </h2>
-            <span className="text-[11px] text-[#7E655D]">Kolkata Metro Zones</span>
+            <span className="text-[11px] text-[#7E655D]">Metro Corridors</span>
           </div>
 
           <div className="space-y-2">
-            {KOLKATA_STOPS.slice(0, 5).map((stop) => (
+            {stops.slice(0, 5).map((stop) => (
               <Card
                 key={stop.id}
                 className="border-[#4E342E]/12 bg-white/65 hover:bg-white/90 hover:border-[#4E342E]/25 transition-all cursor-pointer shadow-sm"
@@ -309,7 +355,7 @@ export default function HomePage() {
                       </div>
                       <p className="text-[11px] text-[#7E655D] mt-0.5">{stop.landmark}</p>
                       <div className="flex flex-wrap gap-1 mt-1.5">
-                        {stop.connectingRoutes.slice(0, 4).map((r) => (
+                        {stop.connectingRoutes?.slice(0, 4).map((r) => (
                           <Badge key={r} variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-[#4E342E]/18 text-[#4E342E] bg-white/50">
                             {r}
                           </Badge>
@@ -331,8 +377,8 @@ export default function HomePage() {
               <Sparkles className="h-3.5 w-3.5 text-[#CC5500]" />
             </div>
             <div>
-              <span className="font-bold text-[#4E342E] block">PostgreSQL + PostGIS Ready</span>
-              <span className="text-[10px] text-[#7E655D]">Dockerized spatial bus network database</span>
+              <span className="font-bold text-[#4E342E] block">PRAVAH Transit Engine</span>
+              <span className="text-[10px] text-[#7E655D]">PostgreSQL + PostGIS spatial telemetry</span>
             </div>
           </div>
           <Badge variant="outline" className="text-[10px] border-[#4E342E]/22 text-[#4E342E] bg-white/70">

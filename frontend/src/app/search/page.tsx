@@ -17,13 +17,23 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { KOLKATA_ROUTES, KOLKATA_STOPS, BusRoute } from "@/lib/data";
+import { useRoutes } from "@/lib/api";
 
 export default function SearchPage() {
+  const { data: apiRoutes } = useRoutes();
+  const routes = apiRoutes.length > 0 ? apiRoutes : KOLKATA_ROUTES;
+
   const [sourceStop, setSourceStop] = React.useState<string>("Howrah Station");
   const [destStop, setDestStop] = React.useState<string>("New Town Shapoorji");
   const [filterType, setFilterType] = React.useState<string>("ALL");
   const [searchWord, setSearchWord] = React.useState<string>("");
-  const [selectedRoute, setSelectedRoute] = React.useState<BusRoute | null>(KOLKATA_ROUTES[0]);
+  const [selectedRoute, setSelectedRoute] = React.useState<BusRoute | null>(routes[0]);
+
+  React.useEffect(() => {
+    if (!selectedRoute && routes.length > 0) {
+      setSelectedRoute(routes[0]);
+    }
+  }, [routes, selectedRoute]);
 
   const handleSwap = () => {
     const temp = sourceStop;
@@ -32,7 +42,7 @@ export default function SearchPage() {
   };
 
   const filteredRoutes = React.useMemo(() => {
-    return KOLKATA_ROUTES.filter((r) => {
+    return routes.filter((r) => {
       const matchSearch =
         r.routeNumber.toLowerCase().includes(searchWord.toLowerCase()) ||
         r.name.toLowerCase().includes(searchWord.toLowerCase()) ||
@@ -45,18 +55,18 @@ export default function SearchPage() {
       if (filterType === "MINIBUS") return r.busType === "MINIBUS";
       return true;
     });
-  }, [searchWord, filterType]);
+  }, [routes, searchWord, filterType]);
 
   return (
     <div className="flex-1 flex flex-col bg-[#F8F4E7] text-[#4E342E] p-4 space-y-4">
       {/* ─── Header ─── */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-base font-bold text-[#4E342E] tracking-tight">Kolkata Route Navigator</h1>
-          <p className="text-xs text-[#7E655D]">Find direct and connecting buses across Kolkata</p>
+          <h1 className="text-base font-bold text-[#4E342E] tracking-tight">PRAVAH Route Navigator</h1>
+          <p className="text-xs text-[#7E655D]">Real-Time Kolkata Transit Network · Find direct & connecting corridors</p>
         </div>
         <Badge variant="outline" className="border-[#CC5500]/30 text-[#CC5500] bg-[#CC5500]/8 text-xs font-semibold">
-          {KOLKATA_ROUTES.length} Official Routes
+          {routes.length} Verified Lines
         </Badge>
       </div>
 

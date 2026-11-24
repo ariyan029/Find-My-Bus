@@ -114,3 +114,8 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(78, 52, 46, 0.38);
 }
+
+/* Darken OpenStreetMap tiles to match the app's dark theme */
+.map-tiles-dark {
+  filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9) saturate(0.6);
+}

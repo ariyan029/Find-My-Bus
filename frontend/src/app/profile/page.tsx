@@ -29,17 +29,17 @@ export default function ProfilePage() {
         <CardContent className="p-4 flex items-center gap-3.5">
           <Avatar className="h-14 w-14 border-2 border-[#CC5500]/30 shadow-md">
             <AvatarFallback className="bg-[#4E342E] text-[#F8F4E7] font-bold text-base">
-              CC
+              PK
             </AvatarFallback>
           </Avatar>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-base font-bold text-[#4E342E]">Kolkata Commuter</h1>
+              <h1 className="text-base font-bold text-[#4E342E]">PRAVAH Commuter</h1>
               <Badge variant="success" className="text-[10px] py-0 px-1.5 h-4 font-semibold">
                 Verified
               </Badge>
             </div>
-            <p className="text-xs text-[#7E655D] mt-0.5">Crowdsourced Transit Contributor</p>
+            <p className="text-xs text-[#7E655D] mt-0.5">PRAVAH Crowdsourced Transit Contributor</p>
             <div className="flex items-center gap-1.5 mt-1 text-[11px] text-[#CC5500] font-semibold">
               <Award className="h-3.5 w-3.5 text-[#CC5500]" />
               <span>Level 3 · Regular Explorer</span>
@@ -148,7 +148,7 @@ export default function ProfilePage() {
       </Card>
 
       <div className="text-center py-2">
-        <p className="text-[11px] text-[#7E655D] font-medium">Where is my Bus (Kolkata) · Urban Mobility v0.3.0</p>
+        <p className="text-[11px] text-[#7E655D] font-medium">PRAVAH · Real-Time Kolkata Transit Network · v0.4.0</p>
       </div>
     </div>
   );

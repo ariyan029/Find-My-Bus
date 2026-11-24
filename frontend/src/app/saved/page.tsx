@@ -15,10 +15,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { KOLKATA_ROUTES, KOLKATA_STOPS } from "@/lib/data";
+import { useRoutes, useStops } from "@/lib/api";
 
 export default function SavedPage() {
-  const favoriteRoutes = KOLKATA_ROUTES.slice(0, 3);
-  const favoriteStops = KOLKATA_STOPS.slice(0, 4);
+  const { data: apiRoutes } = useRoutes();
+  const { data: apiStops } = useStops();
+
+  const routes = apiRoutes.length > 0 ? apiRoutes : KOLKATA_ROUTES;
+  const stops = apiStops.length > 0 ? apiStops : KOLKATA_STOPS;
+
+  const favoriteRoutes = routes.slice(0, 3);
+  const favoriteStops = stops.slice(0, 4);
 
   return (
     <div className="flex-1 flex flex-col bg-[#F8F4E7] text-[#4E342E] p-4 space-y-4">
@@ -26,7 +33,7 @@ export default function SavedPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-base font-bold text-[#4E342E] tracking-tight">Saved & Favorites</h1>
-          <p className="text-xs text-[#7E655D]">Quick access to daily commute corridors</p>
+          <p className="text-xs text-[#7E655D]">Quick access to your daily PRAVAH transit corridors</p>
         </div>
         <Badge variant="outline" className="text-xs border-[#CC5500]/30 text-[#CC5500] bg-[#CC5500]/8 gap-1 font-semibold">
           <Star className="h-3 w-3 fill-[#CC5500] text-[#CC5500]" />
@@ -36,8 +43,8 @@ export default function SavedPage() {
 
       <Tabs defaultValue="buses" className="w-full">
         <TabsList className="grid grid-cols-2 w-full bg-[#4E342E]/8 border border-[#4E342E]/12 h-9">
-          <TabsTrigger value="buses" className="text-xs">Favorite Routes (3)</TabsTrigger>
-          <TabsTrigger value="stops" className="text-xs">Saved Stops (4)</TabsTrigger>
+          <TabsTrigger value="buses" className="text-xs">Favorite Routes ({favoriteRoutes.length})</TabsTrigger>
+          <TabsTrigger value="stops" className="text-xs">Saved Stops ({favoriteStops.length})</TabsTrigger>
         </TabsList>
 
         {/* ─── Favorite Buses Tab ─── */}
@@ -82,7 +89,7 @@ export default function SavedPage() {
                   <div>
                     <h3 className="text-xs font-bold text-[#4E342E]">{stop.name}</h3>
                     <p className="text-[11px] text-[#7E655D]">{stop.landmark}</p>
-                    <p className="text-[10px] text-[#7E655D]/80 mt-0.5">{stop.connectingRoutes.length} connecting lines</p>
+                    <p className="text-[10px] text-[#7E655D]/80 mt-0.5">{stop.connectingRoutes?.length || 0} connecting lines</p>
                   </div>
                 </div>
 
