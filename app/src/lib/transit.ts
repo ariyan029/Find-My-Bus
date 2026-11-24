@@ -132,6 +132,13 @@ export interface LiveRouteMatch {
   telemetrySource: TelemetrySource;
 }
 
+export interface PlacePoint {
+  lat: number;
+  lng: number;
+  label: string;
+  source: "catalog" | "landmark" | "nominatim";
+}
+
 export interface DirectJourney {
   route: BusRoute;
   direction: "forward" | "return";
@@ -142,6 +149,8 @@ export interface DirectJourney {
   estFare: number;
   schedule: JourneyScheduleInfo;
   liveMatch?: LiveRouteMatch;
+  corridorMatchNote?: string;
+  corridorWalkKm?: number;
 }
 
 export interface ConnectingJourney {
@@ -158,10 +167,36 @@ export interface ConnectingJourney {
 export interface JourneySearchResult {
   resolvedFrom: string | null;
   resolvedTo: string | null;
-  searchTimeLabel: string;
+  fromSource?: "catalog" | "landmark" | "nominatim";
+  toSource?: "catalog" | "landmark" | "nominatim";
   direct: DirectJourney[];
   connecting: ConnectingJourney[];
+  searchTimeLabel: string;
 }
+
+const KOLKATA_LANDMARKS: Array<{ keywords: string[]; label: string; lat: number; lng: number }> = [
+  { keywords: ["adamas", "adamas university", "barbaria"], label: "Adamas University (Barbaria)", lat: 22.7397, lng: 88.4575 },
+  { keywords: ["brainware", "brainware university"], label: "Brainware University (Barasat)", lat: 22.7318, lng: 88.4990 },
+  { keywords: ["barasat court", "kachhari maidan", "kachari maidan"], label: "Barasat Court / Kachhari Maidan", lat: 22.7215, lng: 88.4805 },
+  { keywords: ["city centre 1", "cc1", "salt lake city centre"], label: "City Centre 1 (Salt Lake)", lat: 22.5882, lng: 88.4084 },
+  { keywords: ["south city", "south city mall"], label: "South City Mall", lat: 22.5016, lng: 88.3617 },
+  { keywords: ["quest mall"], label: "Quest Mall (Park Circus)", lat: 22.5390, lng: 88.3657 },
+  { keywords: ["axis mall"], label: "Axis Mall (New Town)", lat: 22.5795, lng: 88.4599 },
+  { keywords: ["biswa bangla gate", "narkelbagan", "narkel bagan"], label: "Biswa Bangla Gate (Narkelbagan)", lat: 22.5821, lng: 88.4660 },
+  { keywords: ["sskm", "pg hospital"], label: "SSKM / IPGMER Hospital", lat: 22.5400, lng: 88.3418 },
+  { keywords: ["apollo", "apollo hospital", "apollo gleneagles"], label: "Apollo Gleneagles Hospital", lat: 22.5744, lng: 88.4017 },
+  { keywords: ["victoria memorial", "victoria"], label: "Victoria Memorial", lat: 22.5450, lng: 88.3426 },
+  { keywords: ["st xaviers", "st. xavier", "xaviers"], label: "St. Xavier's (Park Street)", lat: 22.5491, lng: 88.3562 },
+  { keywords: ["presidency university", "presidency"], label: "Presidency University", lat: 22.5763, lng: 88.3632 },
+  { keywords: ["techno india", "iem", "salt lake"], label: "Techno India / IEM Sector V", lat: 22.5758, lng: 88.4278 },
+  { keywords: ["unitech", "candor", "infospace"], label: "Candor / Unitech New Town", lat: 22.5800, lng: 88.4810 },
+  { keywords: ["heritage", "heritage institute"], label: "Heritage Institute (Anandapur)", lat: 22.5171, lng: 88.4184 },
+  { keywords: ["nrs", "nrs hospital"], label: "NRS Medical College (Sealdah)", lat: 22.5628, lng: 88.3694 },
+  { keywords: ["rg kar", "r.g. kar"], label: "R.G. Kar Medical College", lat: 22.6042, lng: 88.3778 },
+  { keywords: ["howrah bridge", "rabindra setu"], label: "Howrah Bridge", lat: 22.5852, lng: 88.3468 },
+  { keywords: ["acropolis", "acropolis mall"], label: "Acropolis Mall (Kasba)", lat: 22.5150, lng: 88.3932 },
+  { keywords: ["mani square", "mani square mall"], label: "Mani Square (EM Bypass)", lat: 22.5778, lng: 88.4014 },
+];
 
 const STOP_ALIASES: Record<string, string> = {
   dharmatala: "esplanade bus terminus",
@@ -396,8 +431,120 @@ function findMatchingStop(query: string, stopsCatalog: BusStop[]): BusStop | und
       normalizeText(s.code) === raw ||
       normalizeText(s.bengaliName) === raw ||
       normalizeText(s.name).includes(expanded) ||
-      normalizeText(s.bengaliName).includes(raw)
+      normalizeText(s.bengaliName).includes(raw) ||
+      (raw.length >= 4 && normalizeText(s.landmark).includes(raw))
   );
+}
+
+/**
+ * Resolve a free-text query against known Kolkata bus stops or curated landmarks
+ * without making any external network request.
+ */
+export function resolveLocalPlace(query: string, stopsCatalog: BusStop[]): PlacePoint | null {
+  const raw = normalizeText(query);
+  if (!raw) return null;
+
+  const stop = findMatchingStop(query, stopsCatalog);
+  if (stop) {
+    return { lat: stop.lat, lng: stop.lng, label: stop.name, source: "catalog" };
+  }
+
+  const expanded = expandQueryAlias(query);
+  const landmark = KOLKATA_LANDMARKS.find((lm) =>
+    lm.keywords.some((kw) => raw === kw || expanded === kw || raw.includes(kw) || kw.includes(raw))
+  );
+  if (landmark) {
+    return { lat: landmark.lat, lng: landmark.lng, label: landmark.label, source: "landmark" };
+  }
+
+  return null;
+}
+
+interface CorridorProjection {
+  pos: number;
+  nearestIdx: number;
+  distKm: number;
+  typicalTimeMins: number;
+  fareFromStart: number;
+  segmentLabel: string;
+}
+
+const MAX_CORRIDOR_DIST_KM = 1.65;
+
+/**
+ * Project any (lat, lng) map coordinate onto the consecutive stop segments of a route.
+ * Detects intermediate locations that lie between two stops along a bus's corridor.
+ */
+function projectPointOntoRoute(
+  lat: number,
+  lng: number,
+  route: BusRoute
+): CorridorProjection | null {
+  const pts = route.stopPoints;
+  if (!pts || pts.length < 2) return null;
+
+  const cosLat = Math.cos(toRad(lat));
+  let bestSegIdx = 0;
+  let bestT = 0;
+  let bestDistKm = Infinity;
+
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i];
+    const b = pts[i + 1];
+    const ax = a.lng * cosLat;
+    const ay = a.lat;
+    const bx = b.lng * cosLat;
+    const by = b.lat;
+    const px = lng * cosLat;
+    const py = lat;
+
+    const dx = bx - ax;
+    const dy = by - ay;
+    const lenSq = dx * dx + dy * dy;
+    const t = lenSq > 0 ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq)) : 0;
+    const projLat = a.lat + t * (b.lat - a.lat);
+    const projLng = a.lng + t * (b.lng - a.lng);
+    const distKm = haversineKm(lat, lng, projLat, projLng);
+
+    if (distKm < bestDistKm) {
+      bestDistKm = distKm;
+      bestSegIdx = i;
+      bestT = t;
+    }
+  }
+
+  if (bestDistKm > MAX_CORRIDOR_DIST_KM) return null;
+
+  const a = pts[bestSegIdx];
+  const b = pts[bestSegIdx + 1];
+  const nearestIdx = bestT < 0.5 ? bestSegIdx : bestSegIdx + 1;
+  const typicalTimeMins = Math.round(a.typicalTimeMins + bestT * (b.typicalTimeMins - a.typicalTimeMins));
+  const fareFromStart = Math.round(a.fareFromStart + bestT * (b.fareFromStart - a.fareFromStart));
+  const segmentLabel =
+    bestT < 0.15
+      ? a.name
+      : bestT > 0.85
+        ? b.name
+        : `${a.name} – ${b.name}`;
+
+  return {
+    pos: bestSegIdx + bestT,
+    nearestIdx,
+    distKm: Math.round(bestDistKm * 10) / 10,
+    typicalTimeMins,
+    fareFromStart,
+    segmentLabel,
+  };
+}
+
+interface RouteEndpoint {
+  pos: number;
+  stopIdx: number;
+  name: string;
+  typicalTimeMins?: number;
+  fareFromStart?: number;
+  viaCorridor: boolean;
+  walkKm: number;
 }
 
 function resolveStopIndex(
@@ -422,33 +569,36 @@ function resolveStopIndex(
   });
 }
 
-function buildLeg(
+function buildLegFromEndpoints(
   route: BusRoute,
-  fromIdx: number,
-  toIdx: number,
+  fromEp: RouteEndpoint,
+  toEp: RouteEndpoint,
   departureDate: Date,
   liveBuses?: LiveBus[]
 ): DirectJourney {
   const names = route.stopPoints?.map((p) => p.name) ?? route.stops;
-  const direction: "forward" | "return" = fromIdx <= toIdx ? "forward" : "return";
-  const stopsBetween = Math.abs(toIdx - fromIdx);
+  const direction: "forward" | "return" = fromEp.pos <= toEp.pos ? "forward" : "return";
+  const stopsBetween = Math.max(1, Math.round(Math.abs(toEp.pos - fromEp.pos)));
   const totalSegments = Math.max(1, names.length - 1);
 
-  let rawEstMins = Math.max(5, Math.round((stopsBetween / totalSegments) * route.avgTripMins));
+  let rawEstMins = Math.max(5, Math.round((Math.abs(toEp.pos - fromEp.pos) / totalSegments) * route.avgTripMins));
   let estFare = route.fareMin;
-  let boardingOffsetMins = Math.round((fromIdx / totalSegments) * route.avgTripMins);
+  let boardingOffsetMins = Math.round((fromEp.pos / totalSegments) * route.avgTripMins);
 
-  if (route.stopPoints && route.stopPoints.length === names.length) {
-    const fromPt = route.stopPoints[fromIdx];
-    const toPt = route.stopPoints[toIdx];
-    const timeDiff = Math.abs(toPt.typicalTimeMins - fromPt.typicalTimeMins);
+  const fromTime = fromEp.typicalTimeMins ?? route.stopPoints?.[fromEp.stopIdx]?.typicalTimeMins;
+  const toTime = toEp.typicalTimeMins ?? route.stopPoints?.[toEp.stopIdx]?.typicalTimeMins;
+  const fromFare = fromEp.fareFromStart ?? route.stopPoints?.[fromEp.stopIdx]?.fareFromStart;
+  const toFare = toEp.fareFromStart ?? route.stopPoints?.[toEp.stopIdx]?.fareFromStart;
+
+  if (fromTime != null && toTime != null) {
+    const timeDiff = Math.abs(toTime - fromTime);
     if (timeDiff > 0) rawEstMins = timeDiff;
-    const fareDiff = Math.abs(toPt.fareFromStart - fromPt.fareFromStart);
-    estFare = Math.max(route.fareMin, fareDiff || route.fareMin);
     boardingOffsetMins =
-      direction === "forward"
-        ? fromPt.typicalTimeMins
-        : Math.max(0, route.avgTripMins - fromPt.typicalTimeMins);
+      direction === "forward" ? fromTime : Math.max(0, route.avgTripMins - fromTime);
+  }
+  if (fromFare != null && toFare != null) {
+    const fareDiff = Math.abs(toFare - fromFare);
+    estFare = Math.max(route.fareMin, fareDiff || route.fareMin);
   }
 
   const { adjustedTripMins, schedule } = computeScheduleOutcome(
@@ -462,15 +612,25 @@ function buildLeg(
     (b) => b.routeId === route.id || b.busNumber.toLowerCase() === route.routeNumber.toLowerCase()
   );
 
+  const maxWalkKm = Math.max(fromEp.walkKm, toEp.walkKm);
+  let corridorMatchNote: string | undefined;
+  if (fromEp.viaCorridor || toEp.viaCorridor) {
+    const parts: string[] = [];
+    if (fromEp.viaCorridor) parts.push(`Board near ${fromEp.name} (~${fromEp.walkKm} km)`);
+    if (toEp.viaCorridor) parts.push(`Drop near ${toEp.name} (~${toEp.walkKm} km)`);
+    corridorMatchNote = parts.join(" · ");
+  }
+
   return {
     route,
     direction,
-    fromStopName: names[fromIdx],
-    toStopName: names[toIdx],
+    fromStopName: fromEp.name,
+    toStopName: toEp.name,
     stopsBetween,
     estMins: adjustedTripMins,
     estFare,
     schedule,
+    ...(corridorMatchNote && { corridorMatchNote, corridorWalkKm: maxWalkKm }),
     ...(matchedLive && {
       liveMatch: {
         busId: matchedLive.id,
@@ -486,15 +646,21 @@ function buildLeg(
 }
 
 /**
- * Find direct and 1-transfer bus routes between two Kolkata stops,
- * complete with schedule windows, departure/arrival times, and fares.
+ * Find direct and 1-transfer bus routes between two Kolkata locations,
+ * supporting stop names, landmarks, and geometric map-corridor matching
+ * for intermediate places that fall between a route's source and destination.
  */
 export function findJourneys(
   fromQuery: string,
   toQuery: string,
   routes: BusRoute[],
   stopsCatalog: BusStop[],
-  options?: { departureTime?: Date; liveBuses?: LiveBus[] }
+  options?: {
+    departureTime?: Date;
+    liveBuses?: LiveBus[];
+    fromCoord?: PlacePoint | null;
+    toCoord?: PlacePoint | null;
+  }
 ): JourneySearchResult {
   const departureDate = options?.departureTime ?? new Date();
   const liveBuses = options?.liveBuses;
@@ -517,44 +683,99 @@ export function findJourneys(
 
   const fromStopMatch = findMatchingStop(fromQuery, stopsCatalog);
   const toStopMatch = findMatchingStop(toQuery, stopsCatalog);
+  const fromPlace =
+    options?.fromCoord ?? resolveLocalPlace(fromQuery, stopsCatalog);
+  const toPlace =
+    options?.toCoord ?? resolveLocalPlace(toQuery, stopsCatalog);
+
   const expandedFrom = expandQueryAlias(fromQuery);
   const expandedTo = expandQueryAlias(toQuery);
   const matchedFromNorm = fromStopMatch ? normalizeText(fromStopMatch.name) : null;
   const matchedToNorm = toStopMatch ? normalizeText(toStopMatch.name) : null;
 
   const direct: DirectJourney[] = [];
-  const startRoutes: Array<{ route: BusRoute; fromIdx: number; names: string[] }> = [];
+  const startRoutes: Array<{ route: BusRoute; fromEp: RouteEndpoint; names: string[] }> = [];
   const endRoutes: Array<{
     route: BusRoute;
-    toIdx: number;
+    toEp: RouteEndpoint;
     indexByNormName: Map<string, number>;
   }> = [];
 
   for (const route of routes) {
+    const names = route.stopPoints?.map((p) => p.name) ?? route.stops;
     const fromIdx = resolveStopIndex(route, expandedFrom, matchedFromNorm);
     const toIdx = resolveStopIndex(route, expandedTo, matchedToNorm);
 
-    if (fromIdx >= 0 && toIdx >= 0 && fromIdx !== toIdx) {
-      direct.push(buildLeg(route, fromIdx, toIdx, departureDate, liveBuses));
-    }
+    let fromEp: RouteEndpoint | null = null;
     if (fromIdx >= 0) {
-      const names = route.stopPoints?.map((p) => p.name) ?? route.stops;
-      startRoutes.push({ route, fromIdx, names });
+      fromEp = {
+        pos: fromIdx,
+        stopIdx: fromIdx,
+        name: names[fromIdx],
+        viaCorridor: false,
+        walkKm: 0,
+      };
+    } else if (fromPlace) {
+      const proj = projectPointOntoRoute(fromPlace.lat, fromPlace.lng, route);
+      if (proj) {
+        fromEp = {
+          pos: proj.pos,
+          stopIdx: proj.nearestIdx,
+          name: proj.segmentLabel,
+          typicalTimeMins: proj.typicalTimeMins,
+          fareFromStart: proj.fareFromStart,
+          viaCorridor: true,
+          walkKm: proj.distKm,
+        };
+      }
     }
+
+    let toEp: RouteEndpoint | null = null;
     if (toIdx >= 0) {
-      const names = route.stopPoints?.map((p) => p.name) ?? route.stops;
+      toEp = {
+        pos: toIdx,
+        stopIdx: toIdx,
+        name: names[toIdx],
+        viaCorridor: false,
+        walkKm: 0,
+      };
+    } else if (toPlace) {
+      const proj = projectPointOntoRoute(toPlace.lat, toPlace.lng, route);
+      if (proj) {
+        toEp = {
+          pos: proj.pos,
+          stopIdx: proj.nearestIdx,
+          name: proj.segmentLabel,
+          typicalTimeMins: proj.typicalTimeMins,
+          fareFromStart: proj.fareFromStart,
+          viaCorridor: true,
+          walkKm: proj.distKm,
+        };
+      }
+    }
+
+    if (fromEp && toEp && Math.abs(toEp.pos - fromEp.pos) >= 0.15) {
+      direct.push(buildLegFromEndpoints(route, fromEp, toEp, departureDate, liveBuses));
+    }
+    if (fromEp) {
+      startRoutes.push({ route, fromEp, names });
+    }
+    if (toEp) {
       const indexByNormName = new Map<string, number>();
       for (let idx = 0; idx < names.length; idx++) {
         indexByNormName.set(normalizeText(names[idx]), idx);
       }
-      endRoutes.push({ route, toIdx, indexByNormName });
+      endRoutes.push({ route, toEp, indexByNormName });
     }
   }
 
   direct.sort((a, b) => {
+    const aCorridor = a.corridorMatchNote ? 1 : 0;
+    const bCorridor = b.corridorMatchNote ? 1 : 0;
+    if (aCorridor !== bCorridor) return aCorridor - bCorridor;
     if (a.liveMatch && !b.liveMatch) return -1;
     if (!a.liveMatch && b.liveMatch) return 1;
-    return a.estMins - b.estMins;
+    return a.estMins + (a.corridorWalkKm ?? 0) * 8 - (b.estMins + (b.corridorWalkKm ?? 0) * 8);
   });
 
   // Compute 1-transfer connections using O(1) per-stop transfer hub lookup.
@@ -567,21 +788,47 @@ export function findJourneys(
       if (s.route.id === e.route.id) continue;
 
       for (let i = 0; i < sNames.length; i++) {
-        if (i === s.fromIdx) continue;
+        if (Math.abs(i - s.fromEp.pos) < 0.25) continue;
         const transferName = sNames[i];
         const j = e.indexByNormName.get(normalizeText(transferName));
-        if (j === undefined || j === e.toIdx) continue;
+        if (j === undefined || Math.abs(j - e.toEp.pos) < 0.25) continue;
 
         const pairKey = `${s.route.id}:${e.route.id}:${transferName}`;
         if (seenPairs.has(pairKey)) continue;
         seenPairs.add(pairKey);
 
-        const firstLeg = buildLeg(s.route, s.fromIdx, i, departureDate, liveBuses);
-        // Align second leg departure to when the rider arrives at the transfer stop + 4m walk/buffer.
+        const transferStartEp: RouteEndpoint = {
+          pos: i,
+          stopIdx: i,
+          name: transferName,
+          viaCorridor: false,
+          walkKm: 0,
+        };
+        const transferEndEp: RouteEndpoint = {
+          pos: j,
+          stopIdx: j,
+          name: e.route.stopPoints?.[j]?.name ?? transferName,
+          viaCorridor: false,
+          walkKm: 0,
+        };
+
+        const firstLeg = buildLegFromEndpoints(
+          s.route,
+          s.fromEp,
+          transferStartEp,
+          departureDate,
+          liveBuses
+        );
         const arrivalAtTransfer = new Date(
           departureDate.getTime() + (firstLeg.schedule.waitMins + firstLeg.estMins + 4) * 60_000
         );
-        const secondLeg = buildLeg(e.route, j, e.toIdx, arrivalAtTransfer, liveBuses);
+        const secondLeg = buildLegFromEndpoints(
+          e.route,
+          transferEndEp,
+          e.toEp,
+          arrivalAtTransfer,
+          liveBuses
+        );
         const transferWaitMins = 4 + secondLeg.schedule.waitMins;
         const totalMins = firstLeg.estMins + transferWaitMins + secondLeg.estMins;
 
@@ -602,8 +849,10 @@ export function findJourneys(
   connecting.sort((a, b) => a.totalMins - b.totalMins);
 
   return {
-    resolvedFrom: fromStopMatch?.name ?? fromQuery.trim(),
-    resolvedTo: toStopMatch?.name ?? toQuery.trim(),
+    resolvedFrom: fromPlace?.label ?? fromStopMatch?.name ?? fromQuery.trim(),
+    resolvedTo: toPlace?.label ?? toStopMatch?.name ?? toQuery.trim(),
+    fromSource: fromPlace?.source,
+    toSource: toPlace?.source,
     searchTimeLabel,
     direct,
     connecting: connecting.slice(0, 6),

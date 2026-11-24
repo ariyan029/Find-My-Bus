@@ -52,8 +52,8 @@ test("findJourneys returns direct and 1-transfer Kolkata routes with schedule ou
   });
   assert.ok(behalaRes.direct.some((d) => d.route.routeNumber === "12C"));
 
-  // 1-transfer connection (Howrah Station -> Gariahat Junction)
-  const transferRes = findJourneys("Howrah Station", "Gariahat Junction", KOLKATA_ROUTES, KOLKATA_STOPS, {
+  // 1-transfer connection (Bansdroni Metro -> Salt Lake Sector V)
+  const transferRes = findJourneys("Bansdroni Metro", "Salt Lake Sector V", KOLKATA_ROUTES, KOLKATA_STOPS, {
     departureTime: morningPeak,
   });
   assert.equal(transferRes.direct.length, 0);
@@ -119,6 +119,31 @@ test("findJourneys returns direct and 1-transfer Kolkata routes with schedule ou
   });
   assert.ok(hwhSectorV.direct.some((d) => d.route.routeNumber === "71"));
   assert.ok(hwhSectorV.direct.some((d) => d.route.routeNumber === "44A"));
+
+  // Intermediate / landmark corridor matching (middle stops between source & destination)
+  const barasatAdamas = findJourneys("Barasat", "Adamas University", KOLKATA_ROUTES, KOLKATA_STOPS, {
+    departureTime: morningPeak,
+  });
+  assert.ok(barasatAdamas.direct.some((d) => d.route.routeNumber === "81"));
+
+  const barasatCc1 = findJourneys("Barasat", "City Centre 1", KOLKATA_ROUTES, KOLKATA_STOPS, {
+    departureTime: morningPeak,
+  });
+  assert.ok(barasatCc1.direct.some((d) => d.route.routeNumber === "DN-8"));
+  assert.ok(barasatCc1.direct.some((d) => d.corridorMatchNote));
+
+  const howrahSouthCity = findJourneys("Howrah", "South City Mall", KOLKATA_ROUTES, KOLKATA_STOPS, {
+    departureTime: morningPeak,
+  });
+  assert.ok(howrahSouthCity.direct.some((d) => d.route.routeNumber === "AC-1"));
+
+  // Arbitrary map coordinate between Barasat Colony More and Nilganj More resolves Route 81
+  const customMapPoint = findJourneys("Barasat", "Jagannathpur Campus", KOLKATA_ROUTES, KOLKATA_STOPS, {
+    departureTime: morningPeak,
+    toCoord: { lat: 22.7375, lng: 88.4380, label: "Jagannathpur Campus", source: "nominatim" },
+  });
+  assert.ok(customMapPoint.direct.some((d) => d.route.routeNumber === "81"));
+  assert.ok(customMapPoint.direct[0].corridorMatchNote);
 });
 
 test("ingestMemoryTelemetry enforces ESP32/Driver priority over passive crowd pings", () => {

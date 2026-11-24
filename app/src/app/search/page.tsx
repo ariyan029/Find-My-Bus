@@ -20,7 +20,12 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ACTIVE_LIVE_BUSES, KOLKATA_ROUTES, KOLKATA_STOPS, BusRoute, BusStop } from "@/lib/data";
 import { useLiveBuses, useRoutes, useStops } from "@/lib/api";
-import { findJourneys, JourneySearchResult } from "@/lib/transit";
+import {
+  findJourneys,
+  JourneySearchResult,
+  PlacePoint,
+  resolveLocalPlace,
+} from "@/lib/transit";
 import { useSavedTransit } from "@/lib/useSavedTransit";
 
 type TimePreset = "now" | "morning" | "afternoon" | "evening";
@@ -142,15 +147,21 @@ function SearchPageContent({
   const [searchWord, setSearchWord] = React.useState<string>("");
   const deferredSearchWord = React.useDeferredValue(searchWord);
   const [selectedRouteId, setSelectedRouteId] = React.useState<string | null>(null);
-  const [activeQuery, setActiveQuery] = React.useState<{ from: string; to: string } | null>(() =>
-    fromParam && toParam ? { from: fromParam, to: toParam } : null
-  );
+  const [geocoding, setGeocoding] = React.useState(false);
+  const [activeQuery, setActiveQuery] = React.useState<{
+    from: string;
+    to: string;
+    fromCoord?: PlacePoint | null;
+    toCoord?: PlacePoint | null;
+  } | null>(() => (fromParam && toParam ? { from: fromParam, to: toParam } : null));
 
   const journeyResults = React.useMemo<JourneySearchResult | null>(() => {
     if (!activeQuery) return null;
     return findJourneys(activeQuery.from, activeQuery.to, routes, stops, {
       departureTime: resolvePresetDate(timePreset),
       liveBuses,
+      fromCoord: activeQuery.fromCoord,
+      toCoord: activeQuery.toCoord,
     });
   }, [activeQuery, routes, stops, timePreset, liveBuses]);
 
@@ -165,14 +176,46 @@ function SearchPageContent({
   }, [routes, selectedRouteId, journeyResults]);
 
   const runJourneySearch = React.useCallback(
-    (fromVal: string, toVal: string) => {
+    async (fromVal: string, toVal: string) => {
       const cleanFrom = fromVal.trim();
       const cleanTo = toVal.trim();
       if (!cleanFrom || !cleanTo) return;
-      setActiveQuery({ from: cleanFrom, to: cleanTo });
+
+      let fromCoord = resolveLocalPlace(cleanFrom, stops);
+      let toCoord = resolveLocalPlace(cleanTo, stops);
+
+      setActiveQuery({ from: cleanFrom, to: cleanTo, fromCoord, toCoord });
+
+      // If either location is not a known stop/landmark, look up its real map coordinates
+      // via /api/geocode and project onto bus route corridors automatically.
+      if (!fromCoord || !toCoord) {
+        setGeocoding(true);
+        try {
+          const lookup = async (q: string): Promise<PlacePoint | null> => {
+            const r = await fetch(`/api/geocode?q=${encodeURIComponent(q)}`);
+            if (!r.ok) return null;
+            const j = (await r.json()) as { success: boolean; place: PlacePoint | null };
+            return j.place ?? null;
+          };
+          const [resolvedFromCoord, resolvedToCoord] = await Promise.all([
+            fromCoord ? Promise.resolve(fromCoord) : lookup(cleanFrom),
+            toCoord ? Promise.resolve(toCoord) : lookup(cleanTo),
+          ]);
+          fromCoord = resolvedFromCoord;
+          toCoord = resolvedToCoord;
+          setActiveQuery({ from: cleanFrom, to: cleanTo, fromCoord, toCoord });
+        } catch {
+          // Keep local match result on offline error
+        } finally {
+          setGeocoding(false);
+        }
+      }
+
       const res = findJourneys(cleanFrom, cleanTo, routes, stops, {
         departureTime: resolvePresetDate(timePreset),
         liveBuses,
+        fromCoord,
+        toCoord,
       });
       if (res.direct.length > 0) {
         setSelectedRouteId(res.direct[0].route.id);
@@ -303,13 +346,13 @@ function SearchPageContent({
                     value={sourceStop}
                     onChange={setSourceStop}
                     stops={stops}
-                    placeholder="Origin stop (e.g. Howrah, Esplanade, Behala, Dum Dum...)"
+                    placeholder="Origin (e.g. Barasat, Howrah, Esplanade, any place...)"
                   />
                   <StopAutocompleteInput
                     value={destStop}
                     onChange={setDestStop}
                     stops={stops}
-                    placeholder="Destination (e.g. Sector V, Airport, Gariahat, Jadavpur...)"
+                    placeholder="Destination (e.g. Adamas University, Sector V, South City...)"
                   />
                 </div>
 
@@ -345,9 +388,10 @@ function SearchPageContent({
 
               <Button
                 type="submit"
+                disabled={geocoding}
                 className="w-full bg-[#CC5500] hover:bg-[#B34700] text-white text-xs font-bold h-10.5 border border-white/35 shadow-[0_6px_20px_rgba(204,85,0,0.45),inset_0_1px_1px_rgba(255,255,255,0.4)] rounded-xl"
               >
-                Find Kolkata Buses & Timings
+                {geocoding ? "Checking Kolkata Map & Bus Corridors..." : "Find Kolkata Buses & Timings"}
               </Button>
             </div>
           </form>
@@ -405,6 +449,10 @@ function SearchPageContent({
                           )}
                         </div>
 
+                        <p className="text-[11px] font-bold text-[#4E342E] truncate">
+                          {leg.route.name}
+                        </p>
+
                         <div className="flex items-center gap-2 flex-wrap text-xs font-black text-[#4E342E] font-mono tabular-nums">
                           <span>
                             {leg.schedule.departureTimeLabel} → {leg.schedule.arrivalTimeLabel}
@@ -428,6 +476,11 @@ function SearchPageContent({
                         <div className="text-[10px] text-[#7E655D] font-mono">
                           Next departures: {leg.schedule.upcomingDepartures.join(" · ")}
                         </div>
+                        {leg.corridorMatchNote && (
+                          <div className="text-[10px] font-semibold text-[#CC5500] bg-[#CC5500]/10 border border-[#CC5500]/20 px-2 py-0.5 rounded-md w-fit">
+                            Route corridor match · {leg.corridorMatchNote}
+                          </div>
+                        )}
                       </div>
                       <Link
                         href={`/?route=${encodeURIComponent(leg.route.routeNumber)}`}
