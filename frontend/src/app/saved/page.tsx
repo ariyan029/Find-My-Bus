@@ -21,21 +21,21 @@ export default function SavedPage() {
   const favoriteStops = KOLKATA_STOPS.slice(0, 4);
 
   return (
-    <div className="flex-1 flex flex-col bg-[#09090b] text-zinc-100 p-4 space-y-4">
+    <div className="flex-1 flex flex-col bg-[#F8F4E7] text-[#4E342E] p-4 space-y-4">
       {/* ─── Header ─── */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-base font-bold text-white tracking-tight">Saved & Favorites</h1>
-          <p className="text-xs text-zinc-400">Quick access to daily commute corridors</p>
+          <h1 className="text-base font-bold text-[#4E342E] tracking-tight">Saved & Favorites</h1>
+          <p className="text-xs text-[#7E655D]">Quick access to daily commute corridors</p>
         </div>
-        <Badge variant="outline" className="text-xs border-amber-500/30 text-amber-400 gap-1">
-          <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+        <Badge variant="outline" className="text-xs border-[#CC5500]/30 text-[#CC5500] bg-[#CC5500]/8 gap-1 font-semibold">
+          <Star className="h-3 w-3 fill-[#CC5500] text-[#CC5500]" />
           Frequent
         </Badge>
       </div>
 
       <Tabs defaultValue="buses" className="w-full">
-        <TabsList className="grid grid-cols-2 w-full bg-[#121217] border border-[#272732] h-9">
+        <TabsList className="grid grid-cols-2 w-full bg-[#4E342E]/8 border border-[#4E342E]/12 h-9">
           <TabsTrigger value="buses" className="text-xs">Favorite Routes (3)</TabsTrigger>
           <TabsTrigger value="stops" className="text-xs">Saved Stops (4)</TabsTrigger>
         </TabsList>
@@ -43,26 +43,26 @@ export default function SavedPage() {
         {/* ─── Favorite Buses Tab ─── */}
         <TabsContent value="buses" className="space-y-2.5 mt-3">
           {favoriteRoutes.map((route) => (
-            <Card key={route.id} className="border-[#272732] bg-[#121217]">
+            <Card key={route.id} className="border-[#4E342E]/14 bg-white/70 backdrop-blur-xl shadow-sm">
               <CardContent className="p-3.5 flex items-center justify-between">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <Badge variant={route.busType === "AC_EXPRESS" ? "ac" : "ordinary"}>
                       {route.routeNumber}
                     </Badge>
-                    <span className="text-xs font-semibold text-white truncate">
+                    <span className="text-xs font-bold text-[#4E342E] truncate">
                       {route.source} ⇄ {route.destination}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 text-[11px] text-zinc-400">
-                    <Clock className="h-3 w-3 text-zinc-500" />
+                  <div className="flex items-center gap-2 text-[11px] text-[#7E655D]">
+                    <Clock className="h-3 w-3 text-[#7E655D]" />
                     <span>Every {route.frequencyMins}m</span>
                     <span>·</span>
-                    <span className="text-emerald-400 font-medium">Buses Active Now</span>
+                    <span className="text-emerald-800 font-semibold">Buses Active Now</span>
                   </div>
                 </div>
 
-                <Button size="sm" variant="outline" className="h-8 text-xs border-[#272732]">
+                <Button size="sm" variant="transit" className="h-8 text-xs font-bold">
                   Track
                 </Button>
               </CardContent>
@@ -73,20 +73,20 @@ export default function SavedPage() {
         {/* ─── Saved Stops Tab ─── */}
         <TabsContent value="stops" className="space-y-2.5 mt-3">
           {favoriteStops.map((stop) => (
-            <Card key={stop.id} className="border-[#272732] bg-[#121217]">
+            <Card key={stop.id} className="border-[#4E342E]/14 bg-white/70 backdrop-blur-xl shadow-sm">
               <CardContent className="p-3.5 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-[#181822] border border-[#272732] flex items-center justify-center">
-                    <MapPin className="h-4 w-4 text-amber-400" />
+                  <div className="w-8 h-8 rounded-xl bg-[#CC5500]/12 border border-[#CC5500]/25 flex items-center justify-center">
+                    <MapPin className="h-4 w-4 text-[#CC5500]" />
                   </div>
                   <div>
-                    <h3 className="text-xs font-semibold text-white">{stop.name}</h3>
-                    <p className="text-[11px] text-zinc-400">{stop.landmark}</p>
-                    <p className="text-[10px] text-zinc-500 mt-0.5">{stop.connectingRoutes.length} connecting lines</p>
+                    <h3 className="text-xs font-bold text-[#4E342E]">{stop.name}</h3>
+                    <p className="text-[11px] text-[#7E655D]">{stop.landmark}</p>
+                    <p className="text-[10px] text-[#7E655D]/80 mt-0.5">{stop.connectingRoutes.length} connecting lines</p>
                   </div>
                 </div>
 
-                <ArrowRight className="h-4 w-4 text-zinc-500" />
+                <ArrowRight className="h-4 w-4 text-[#7E655D]" />
               </CardContent>
             </Card>
           ))}
@@ -95,7 +95,7 @@ export default function SavedPage() {
 
       {/* ─── Recent Trip Searches ─── */}
       <div className="space-y-2 pt-2">
-        <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-400">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-[#4E342E]">
           Recent Searches
         </h2>
 
@@ -107,13 +107,13 @@ export default function SavedPage() {
           ].map((item, idx) => (
             <div
               key={idx}
-              className="p-2.5 rounded-lg bg-[#121217] border border-[#272732] flex items-center justify-between text-xs cursor-pointer hover:border-[#383848]"
+              className="p-3 rounded-xl bg-white/65 border border-[#4E342E]/12 flex items-center justify-between text-xs cursor-pointer hover:border-[#4E342E]/25 hover:bg-white/90 shadow-sm transition-all"
             >
-              <div className="flex items-center gap-2 text-zinc-300">
-                <Clock className="h-3.5 w-3.5 text-zinc-500" />
+              <div className="flex items-center gap-2 text-[#4E342E] font-medium">
+                <Clock className="h-3.5 w-3.5 text-[#7E655D]" />
                 <span>{item.query}</span>
               </div>
-              <span className="text-[10px] text-zinc-500">{item.time}</span>
+              <span className="text-[10px] text-[#7E655D] font-medium">{item.time}</span>
             </div>
           ))}
         </div>

@@ -16,7 +16,7 @@ export default function BottomNav() {
   ];
 
   return (
-    <nav className="shrink-0 w-full bg-[#121217]/95 backdrop-blur-md border-t border-[#272732] py-2 px-4 z-50">
+    <nav className="shrink-0 w-full bg-[#F8F4E7]/90 backdrop-blur-xl border-t border-[#4E342E]/12 py-2 px-3 z-50 shadow-[0_-4px_20px_rgba(78,52,46,0.04)]">
       <div className="flex justify-around items-center">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
@@ -26,19 +26,24 @@ export default function BottomNav() {
               key={item.name}
               href={item.href}
               className={cn(
-                "flex flex-col items-center justify-center gap-1 py-1 px-3 rounded-lg transition-all",
+                "flex flex-col items-center justify-center gap-1 py-1 px-3 rounded-xl transition-all duration-200 relative group",
                 isActive
-                  ? "text-blue-400 font-semibold"
-                  : "text-zinc-400 hover:text-zinc-200"
+                  ? "text-[#CC5500] font-bold"
+                  : "text-[#4E342E]/65 hover:text-[#4E342E] hover:bg-[#4E342E]/5"
               )}
             >
+              {isActive && (
+                <span className="absolute -top-2 w-6 h-0.5 rounded-full bg-[#CC5500]" />
+              )}
               <div
                 className={cn(
-                  "p-1 rounded-md transition-colors",
-                  isActive ? "bg-blue-600/15 text-blue-400" : "text-zinc-400"
+                  "p-1.5 rounded-xl transition-all duration-200",
+                  isActive
+                    ? "bg-[#CC5500]/12 text-[#CC5500] shadow-sm"
+                    : "text-[#4E342E]/70 group-hover:text-[#4E342E]"
                 )}
               >
-                <Icon size={19} strokeWidth={isActive ? 2.4 : 1.8} />
+                <Icon size={19} strokeWidth={isActive ? 2.5 : 1.9} />
               </div>
               <span className="text-[11px] tracking-tight">{item.name}</span>
             </Link>

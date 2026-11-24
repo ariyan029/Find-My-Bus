@@ -4,12 +4,12 @@ import BottomNav from "./components/BottomNav";
 
 export const metadata: Metadata = {
   title: "Where is my Bus? (Kolkata) - Real-Time Transit Tracking",
-  description: "Live crowdsourced Kolkata bus tracking, dynamic ETAs, route schedules, and stop navigator.",
+  description: "Live crowdsourced Kolkata bus tracking, dynamic ETAs, route schedules, and stop navigator in a modern urban mobility experience.",
   manifest: "/manifest.json",
 };
 
 export const viewport: Viewport = {
-  themeColor: "#09090b",
+  themeColor: "#F8F4E7",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -18,11 +18,14 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="dark">
-      <body className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col font-sans selection:bg-blue-600/30">
-        {/* App Frame - Responsive for both Desktop and Mobile */}
-        <div className="flex-1 flex justify-center w-full min-h-screen sm:py-4">
-          <div className="w-full max-w-lg min-h-screen sm:min-h-[92vh] sm:max-h-[92vh] bg-[#121217] sm:border sm:border-[#272732] sm:rounded-2xl sm:shadow-2xl flex flex-col overflow-hidden relative">
+    <html lang="en">
+      <body className="min-h-screen bg-[#F8F4E7] text-[#4E342E] flex flex-col font-sans selection:bg-[#CC5500]/25 selection:text-[#4E342E]">
+        {/* Subtle Ambient Background Gradient for Premium Depth */}
+        <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(204,85,0,0.06),rgba(248,244,231,0))] z-0" />
+        
+        {/* Main App Frame - Responsive for Mobile, Tablet, and Desktop */}
+        <div className="flex-1 flex justify-center w-full min-h-screen sm:py-6 z-10">
+          <div className="w-full max-w-lg min-h-screen sm:min-h-[92vh] sm:max-h-[92vh] bg-[#F8F4E7]/95 sm:border sm:border-[#4E342E]/14 sm:rounded-3xl sm:shadow-[0_24px_70px_-15px_rgba(78,52,46,0.16)] flex flex-col overflow-hidden relative backdrop-blur-md">
             <div className="flex-1 overflow-y-auto flex flex-col">
               {children}
             </div>

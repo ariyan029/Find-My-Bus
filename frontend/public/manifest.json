@@ -4,8 +4,8 @@
   "description": "Live track your local Kolkata buses with real-time ETA.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f0f14",
-  "theme_color": "#0f0f14",
+  "background_color": "#F8F4E7",
+  "theme_color": "#F8F4E7",
   "icons": [
     {
       "src": "/favicon.ico",

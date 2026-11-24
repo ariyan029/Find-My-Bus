@@ -2,43 +2,52 @@
 
 @layer base {
   :root {
-    --background: #09090b;
-    --foreground: #fafafa;
+    /* Brand Foundation */
+    --background: #F8F4E7;
+    --foreground: #4E342E;
 
-    --card: #121217;
-    --card-foreground: #fafafa;
+    /* Card & Popover Glassmorphic Surfaces */
+    --card: rgba(255, 255, 255, 0.68);
+    --card-foreground: #4E342E;
 
-    --popover: #121217;
-    --popover-foreground: #fafafa;
+    --popover: #F8F4E7;
+    --popover-foreground: #4E342E;
 
-    --primary: #3b82f6;
-    --primary-foreground: #ffffff;
+    /* Burnt Orange Primary Brand Action */
+    --primary: #CC5500;
+    --primary-foreground: #F8F4E7;
 
-    --secondary: #1e1e26;
-    --secondary-foreground: #e4e4e7;
+    /* Secondary Chocolate Tones */
+    --secondary: #EBE4D0;
+    --secondary-foreground: #4E342E;
 
-    --muted: #1e1e24;
-    --muted-foreground: #a1a1aa;
+    --muted: #EFEAD9;
+    --muted-foreground: #7E655D;
 
-    --accent: #272732;
-    --accent-foreground: #fafafa;
+    --accent: #E5DFC8;
+    --accent-foreground: #4E342E;
 
-    --destructive: #ef4444;
-    --destructive-foreground: #ffffff;
+    --destructive: #B71C1C;
+    --destructive-foreground: #FFFFFF;
 
-    --border: #272732;
-    --input: #272732;
-    --ring: #3b82f6;
+    /* Refined Borders & Controls */
+    --border: rgba(78, 52, 46, 0.15);
+    --input: rgba(78, 52, 46, 0.18);
+    --ring: #CC5500;
 
-    --radius: 0.75rem;
+    --radius: 0.875rem;
 
-    /* Transit Brand Tokens */
-    --transit-ac: #0ea5e9;
-    --transit-ordinary: #3b82f6;
-    --transit-minibus: #f59e0b;
-    --transit-success: #10b981;
-    --transit-warning: #f59e0b;
-    --transit-danger: #ef4444;
+    /* Explicit Brand Variables */
+    --brand-brown: #4E342E;
+    --brand-cream: #F8F4E7;
+    --brand-orange: #CC5500;
+
+    /* Semantic Transit Badges */
+    --transit-ac: #CC5500;
+    --transit-ordinary: #4E342E;
+    --transit-minibus: #B25900;
+    --transit-success: #2E7D32;
+    --transit-warning: #D97706;
   }
 }
 
@@ -50,13 +59,47 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Subtle dot grid for map backing */
-.transit-grid {
-  background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
-  background-size: 24px 24px;
+/* ─── Premium Glassmorphism Utility Classes ─── */
+.glass-cream {
+  background: rgba(248, 244, 231, 0.82);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(78, 52, 46, 0.12);
 }
 
-/* Custom scrollbars */
+.glass-card {
+  background: rgba(255, 255, 255, 0.68);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(78, 52, 46, 0.14);
+  box-shadow: 0 10px 30px -10px rgba(78, 52, 46, 0.08), 0 1px 3px 0 rgba(78, 52, 46, 0.04);
+}
+
+.glass-card-hover {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.glass-card-hover:hover {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(78, 52, 46, 0.25);
+  box-shadow: 0 14px 36px -10px rgba(78, 52, 46, 0.12), 0 2px 6px 0 rgba(78, 52, 46, 0.06);
+  transform: translateY(-1px);
+}
+
+.glass-chocolate {
+  background: rgba(78, 52, 46, 0.94);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  color: #F8F4E7;
+  border: 1px solid rgba(248, 244, 231, 0.15);
+}
+
+/* Subtle warm dot pattern for transit radar background */
+.transit-grid-warm {
+  background-image: radial-gradient(rgba(78, 52, 46, 0.09) 1.2px, transparent 1.2px);
+  background-size: 22px 22px;
+}
+
+/* Custom refined scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -65,9 +108,9 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #272732;
+  background: rgba(78, 52, 46, 0.22);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46;
+  background: rgba(78, 52, 46, 0.38);
 }
