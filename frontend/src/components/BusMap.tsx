@@ -64,7 +64,7 @@ export default function BusMap({ buses, stops, selectedBusId, onSelectBus }: Bus
   const selected = buses.find((b) => b.id === selectedBusId);
 
   return (
-    <div className="h-56 rounded-2xl overflow-hidden border border-[#4E342E]/16 shadow-sm relative z-0">
+    <div className="h-[360px] lg:h-[540px] w-full relative z-0">
       <MapContainer
         center={KOLKATA_CENTER}
         zoom={12}
