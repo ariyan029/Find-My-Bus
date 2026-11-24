@@ -31,25 +31,25 @@ export default function SavedPage() {
   const favoriteStops = stops.slice(0, 4);
 
   return (
-    <div className="flex-1 flex flex-col space-y-5">
+    <div className="flex-1 flex flex-col space-y-6">
       
-      {/* ─── Top Header Banner (35% Chocolate Anchor + 25% Burnt Orange Energy) ─── */}
-      <div className="surface-chocolate-hero p-5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* ─── Top Header Banner: Frosted Dark Chocolate Glass ─── */}
+      <div className="glass-chocolate-hero p-5.5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
-            <h1 className="text-xl font-black tracking-tight text-[#F8F4E7]">Saved Hubs & Corridors</h1>
-            <Badge className="bg-[#CC5500] text-white text-[10px] font-extrabold uppercase px-2.5 py-0.5 border-0 shadow-sm flex items-center gap-1">
+            <h1 className="text-xl font-black tracking-tight text-[#F8F4E7] drop-shadow-xs">Saved Hubs & Corridors</h1>
+            <span className="bg-[#CC5500] text-white text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-md border border-white/30 shadow-sm flex items-center gap-1">
               <Star className="h-3 w-3 fill-white text-white" />
               Frequent Commutes
-            </Badge>
+            </span>
           </div>
-          <p className="text-xs text-[#F8F4E7]/80 mt-1 max-w-xl leading-relaxed">
+          <p className="text-xs text-[#F8F4E7]/85 mt-1 max-w-xl leading-relaxed">
             Instant 1-click access to your daily Kolkata transit routes, pinboards, and junction stops
           </p>
         </div>
 
         <div className="flex items-center gap-2.5 self-start sm:self-auto shrink-0">
-          <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#CC5500]/25 border border-[#CC5500]/45 text-[#F8F4E7] text-xs font-bold shadow-inner">
+          <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-black/25 backdrop-blur-xl border border-white/20 text-[#F8F4E7] text-xs font-bold shadow-inner">
             <Bookmark className="h-4 w-4 text-[#CC5500]" />
             <span>Fast Dispatch Hub</span>
           </div>
@@ -62,32 +62,34 @@ export default function SavedPage() {
         {/* Left Column (7 cols): Pinned Corridors & Favorite Hubs */}
         <div className="lg:col-span-7 space-y-4">
           <Tabs defaultValue="buses" className="w-full">
-            <TabsList className="grid grid-cols-2 w-full bg-[#4E342E] border border-[#CC5500]/25 h-10 p-1 rounded-xl shadow-inner text-[#F8F4E7]">
+            <TabsList className="grid grid-cols-2 w-full bg-[#4E342E]/85 backdrop-blur-2xl border border-white/20 border-t-white/35 h-10.5 p-1 rounded-xl shadow-[0_8px_24px_rgba(78,52,46,0.2),inset_0_1px_1px_rgba(255,255,255,0.2)] text-[#F8F4E7]">
               <TabsTrigger 
                 value="buses" 
-                className="text-xs font-bold data-[state=active]:bg-[#CC5500] data-[state=active]:text-white data-[state=active]:shadow-sm text-[#F8F4E7]/80 hover:text-white"
+                className="text-xs font-bold data-[state=active]:bg-[#CC5500] data-[state=active]:text-white data-[state=active]:shadow-[0_4px_12px_rgba(204,85,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.45)] data-[state=active]:border data-[state=active]:border-white/30 text-[#F8F4E7]/80 hover:text-white"
               >
                 Favorite Routes ({favoriteRoutes.length})
               </TabsTrigger>
               <TabsTrigger 
                 value="stops" 
-                className="text-xs font-bold data-[state=active]:bg-[#CC5500] data-[state=active]:text-white data-[state=active]:shadow-sm text-[#F8F4E7]/80 hover:text-white"
+                className="text-xs font-bold data-[state=active]:bg-[#CC5500] data-[state=active]:text-white data-[state=active]:shadow-[0_4px_12px_rgba(204,85,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.45)] data-[state=active]:border data-[state=active]:border-white/30 text-[#F8F4E7]/80 hover:text-white"
               >
                 Saved Stops ({favoriteStops.length})
               </TabsTrigger>
             </TabsList>
 
-            {/* ─── Favorite Buses Tab ─── */}
+            {/* ─── Favorite Buses Tab (Frosted Glass Panels) ─── */}
             <TabsContent value="buses" className="space-y-2.5 mt-3">
               {favoriteRoutes.map((route) => (
                 <div 
                   key={route.id} 
-                  className="p-4 rounded-xl border border-[#4E342E]/16 bg-white/85 backdrop-blur-xl shadow-sm hover:border-[#CC5500]/40 hover:shadow-md transition-all flex items-center justify-between gap-3"
+                  className="p-4 rounded-xl border border-white/75 border-b-[#4E342E]/15 bg-white/50 backdrop-blur-xl hover:bg-white/70 shadow-[0_6px_20px_rgba(78,52,46,0.06),inset_0_1px_1px_rgba(255,255,255,0.85)] hover:border-[#CC5500]/40 transition-all flex items-center justify-between gap-3"
                 >
                   <div className="space-y-1.5">
                     <div className="flex items-center gap-2">
-                      <span className={`text-xs font-black px-2.5 py-0.5 rounded-md ${
-                        route.busType === "AC_EXPRESS" ? "bg-[#CC5500] text-white" : "bg-[#4E342E] text-white"
+                      <span className={`text-xs font-black px-2.5 py-0.5 rounded-md border ${
+                        route.busType === "AC_EXPRESS" 
+                          ? "bg-[#CC5500] text-white border-white/30 shadow-xs" 
+                          : "bg-[#4E342E] text-white border-white/20"
                       }`}>
                         {route.routeNumber}
                       </span>
@@ -103,7 +105,7 @@ export default function SavedPage() {
                     </div>
                   </div>
 
-                  <Button size="sm" className="h-8.5 text-xs font-bold px-3.5 bg-[#CC5500] hover:bg-[#B34700] text-white shadow-sm rounded-xl">
+                  <Button size="sm" className="h-8.5 text-xs font-bold px-3.5 bg-[#CC5500] hover:bg-[#B34700] text-white border border-white/30 shadow-[0_4px_14px_rgba(204,85,0,0.4),inset_0_1px_1px_rgba(255,255,255,0.4)] rounded-xl">
                     Track Live
                   </Button>
                 </div>
@@ -115,10 +117,10 @@ export default function SavedPage() {
               {favoriteStops.map((stop) => (
                 <div 
                   key={stop.id} 
-                  className="p-4 rounded-xl border border-[#4E342E]/16 bg-white/85 backdrop-blur-xl shadow-sm hover:border-[#CC5500]/40 transition-all flex items-center justify-between"
+                  className="p-4 rounded-xl border border-white/75 border-b-[#4E342E]/15 bg-white/50 backdrop-blur-xl hover:bg-white/70 shadow-[0_6px_20px_rgba(78,52,46,0.06),inset_0_1px_1px_rgba(255,255,255,0.85)] hover:border-[#CC5500]/40 transition-all flex items-center justify-between"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-[#4E342E] text-[#CC5500] flex items-center justify-center shrink-0 shadow-sm border border-[#CC5500]/25">
+                    <div className="w-10 h-10 rounded-xl bg-[#4E342E]/86 text-[#CC5500] flex items-center justify-center shrink-0 shadow-sm border border-white/25">
                       <MapPin className="h-5 w-5" />
                     </div>
                     <div>
@@ -137,16 +139,16 @@ export default function SavedPage() {
 
         {/* Right Column (5 cols): Recent Journeys & Offline Cache */}
         <div className="lg:col-span-5 space-y-4">
-          <div className="rounded-2xl overflow-hidden border border-[#4E342E]/20 bg-white/85 backdrop-blur-xl shadow-[0_10px_30px_-8px_rgba(78,52,46,0.12)]">
-            <div className="bg-[#4E342E] text-[#F8F4E7] p-3.5 px-4 border-b border-[#CC5500]/30 flex items-center justify-between">
+          <div className="rounded-2xl overflow-hidden border border-white/60 border-b-[#4E342E]/15 bg-white/55 backdrop-blur-2xl shadow-[0_16px_40px_rgba(78,52,46,0.12),inset_0_1px_1px_rgba(255,255,255,0.9)]">
+            <div className="bg-[#4E342E]/86 backdrop-blur-2xl text-[#F8F4E7] p-4 border-b border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.25)] flex items-center justify-between">
               <span className="text-xs font-black uppercase tracking-wider text-[#F8F4E7] flex items-center gap-1.5">
                 <Clock className="h-3.5 w-3.5 text-[#CC5500]" />
                 Recent Journey Inquiries
               </span>
-              <span className="text-[10px] text-[#F8F4E7]/70 font-mono">History</span>
+              <span className="text-[10px] text-[#F8F4E7]/75 font-mono">History</span>
             </div>
 
-            <div className="p-4 space-y-2.5 bg-[#F8F4E7]/80">
+            <div className="p-4.5 space-y-2.5 bg-white/40 backdrop-blur-xl">
               {[
                 { query: "Howrah Station to Salt Lake Sector V", time: "Today at 08:45 AM", lines: "S-12, C-11" },
                 { query: "AC-39 Airport schedule", time: "Yesterday at 06:15 PM", lines: "AC-39" },
@@ -155,7 +157,7 @@ export default function SavedPage() {
               ].map((item, idx) => (
                 <div
                   key={idx}
-                  className="p-3 rounded-xl bg-white border border-[#4E342E]/12 flex items-center justify-between text-xs cursor-pointer hover:border-[#CC5500]/40 shadow-xs transition-all"
+                  className="p-3 rounded-xl bg-white/60 backdrop-blur-md border border-white/80 flex items-center justify-between text-xs cursor-pointer hover:border-[#CC5500]/40 hover:bg-white/80 shadow-xs transition-all"
                 >
                   <div className="space-y-0.5">
                     <p className="text-[#4E342E] font-bold">{item.query}</p>
@@ -167,13 +169,13 @@ export default function SavedPage() {
             </div>
           </div>
 
-          {/* Offline Sync State Card */}
-          <div className="p-4 rounded-2xl bg-[#4E342E] text-[#F8F4E7] border border-[#CC5500]/30 shadow-md text-xs space-y-1.5">
+          {/* Offline Sync State Frosted Card */}
+          <div className="p-4.5 rounded-2xl bg-[#4E342E]/86 backdrop-blur-2xl text-[#F8F4E7] border border-white/20 shadow-[0_12px_32px_rgba(78,52,46,0.25),inset_0_1px_1px_rgba(255,255,255,0.25)] text-xs space-y-1.5">
             <div className="flex items-center gap-2 text-[#F8F4E7] font-bold">
               <ShieldCheck className="h-4 w-4 text-[#CC5500]" />
               <span>Offline Route Cache Active</span>
             </div>
-            <p className="text-[11px] text-[#F8F4E7]/80 leading-relaxed">
+            <p className="text-[11px] text-[#F8F4E7]/85 leading-relaxed">
               Key Kolkata stops and route tables are locally stored in your browser cache for low-reception metro tunnels and river corridors.
             </p>
           </div>

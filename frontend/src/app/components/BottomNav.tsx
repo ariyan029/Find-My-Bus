@@ -16,7 +16,7 @@ export default function BottomNav() {
   ];
 
   return (
-    <nav className="shrink-0 w-full bg-[#4E342E]/96 backdrop-blur-xl border-t border-[#CC5500]/30 py-2 px-3 z-50 shadow-[0_-4px_24px_rgba(0,0,0,0.35)]">
+    <nav className="shrink-0 w-full bg-[#4E342E]/86 backdrop-blur-2xl border-t border-white/20 py-2 px-3 z-50 shadow-[0_-8px_32px_0_rgba(78,52,46,0.3),inset_0_1px_1px_0_rgba(255,255,255,0.25)]">
       <div className="flex justify-around items-center">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
@@ -33,13 +33,13 @@ export default function BottomNav() {
               )}
             >
               {isActive && (
-                <span className="absolute -top-2 w-8 h-1 rounded-full bg-[#CC5500] shadow-[0_0_8px_#CC5500]" />
+                <span className="absolute -top-2 w-8 h-1 rounded-full bg-[#CC5500] shadow-[0_0_10px_#CC5500]" />
               )}
               <div
                 className={cn(
                   "p-1.5 rounded-xl transition-all duration-200",
                   isActive
-                    ? "bg-[#CC5500] text-white shadow-[0_2px_12px_rgba(204,85,0,0.5)] scale-105"
+                    ? "bg-[#CC5500] text-white border border-white/35 shadow-[0_4px_14px_rgba(204,85,0,0.55),inset_0_1px_1px_rgba(255,255,255,0.45)] scale-105"
                     : "text-[#F8F4E7]/80 group-hover:text-white group-hover:bg-white/10"
                 )}
               >
@@ -47,7 +47,7 @@ export default function BottomNav() {
               </div>
               <span className={cn(
                 "text-[10px] tracking-tight font-medium",
-                isActive ? "text-[#CC5500] font-bold" : "text-[#F8F4E7]/75"
+                isActive ? "text-[#CC5500] font-bold" : "text-[#F8F4E7]/80"
               )}>
                 {item.name}
               </span>

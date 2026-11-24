@@ -37,8 +37,8 @@ import { BUS_STATUS_LABELS, OCCUPANCY_LABELS } from "@/lib/enums";
 const BusMap = dynamic(() => import("@/components/BusMap"), {
   ssr: false,
   loading: () => (
-    <div className="h-[380px] lg:h-[560px] w-full rounded-2xl bg-[#F8F4E7]/90 border border-[#4E342E]/16 flex flex-col items-center justify-center gap-3 p-6 text-[#7E655D]">
-      <div className="w-9 h-9 rounded-xl bg-[#CC5500]/15 flex items-center justify-center animate-spin">
+    <div className="h-[380px] lg:h-[560px] w-full rounded-2xl bg-white/40 backdrop-blur-2xl border border-white/70 flex flex-col items-center justify-center gap-3 p-6 text-[#7E655D] shadow-[0_8px_32px_rgba(78,52,46,0.08)]">
+      <div className="w-10 h-10 rounded-xl bg-[#CC5500]/15 border border-[#CC5500]/30 flex items-center justify-center animate-spin">
         <RefreshCw className="h-5 w-5 text-[#CC5500]" />
       </div>
       <p className="text-xs font-bold text-[#4E342E]">Loading PRAVAH Spatial Map...</p>
@@ -80,38 +80,38 @@ export default function HomePage() {
   }, [liveBuses, searchQuery, selectedCategory]);
 
   return (
-    <div className="flex-1 flex flex-col space-y-5">
+    <div className="flex-1 flex flex-col space-y-6">
       
-      {/* ─── Top Dashboard Banner: 35% Chocolate Anchor + 25% Burnt Orange Energy ─── */}
-      <div className="surface-chocolate-hero p-5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* ─── Top Dashboard Banner: Frosted Dark Chocolate Glass Surface ─── */}
+      <div className="glass-chocolate-hero p-5.5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
-            <h1 className="text-xl font-black tracking-tight text-[#F8F4E7]">
+            <h1 className="text-xl font-black tracking-tight text-[#F8F4E7] drop-shadow-xs">
               Live Transit Radar
             </h1>
-            <Badge className="bg-[#CC5500] text-[#F8F4E7] text-[10px] font-extrabold uppercase px-2.5 py-0.5 border-0 shadow-sm">
+            <span className="bg-[#CC5500] text-white text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-md border border-white/30 shadow-sm">
               Kolkata Real-Time
-            </Badge>
+            </span>
           </div>
-          <p className="text-xs text-[#F8F4E7]/80 mt-1 max-w-xl leading-relaxed">
+          <p className="text-xs text-[#F8F4E7]/85 mt-1 max-w-xl leading-relaxed">
             Live crowdsourced GPS coordinates & WBTC official corridors with sub-minute ETA predictions
           </p>
         </div>
 
         <div className="flex items-center gap-2.5 self-start sm:self-auto shrink-0">
-          <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#CC5500]/25 border border-[#CC5500]/45 text-[#F8F4E7] text-xs font-bold shadow-inner">
+          <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-black/25 backdrop-blur-xl border border-white/20 text-[#F8F4E7] text-xs font-bold shadow-[inset_0_1px_2px_rgba(0,0,0,0.2)]">
             <Radio className="h-4 w-4 text-[#CC5500] animate-pulse" />
             <span><strong className="text-white font-mono text-sm">{liveBuses.length}</strong> Active Buses</span>
           </div>
 
-          <div className="hidden lg:flex items-center gap-2 px-3 py-2 rounded-xl bg-white/10 border border-white/15 text-[#F8F4E7] text-xs font-medium">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+          <div className="hidden lg:flex items-center gap-2 px-3 py-2 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 text-[#F8F4E7] text-xs font-medium">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
             <span>99.4% Sync</span>
           </div>
         </div>
       </div>
 
-      {/* ─── Search & Category Filter Header (Cream input + Chocolate Capsule Tabs) ─── */}
+      {/* ─── Search & Category Filter Header (Frosted Glass Input + Dark Chocolate Glass Tabs) ─── */}
       <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#7E655D]" />
@@ -120,33 +120,33 @@ export default function HomePage() {
             placeholder="Search bus line (e.g. S-12, AC-39), destination, or stop..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 pr-4 bg-white/90 border-[#4E342E]/20 h-10.5 text-xs text-[#4E342E] placeholder:text-[#7E655D] focus-visible:ring-2 focus-visible:ring-[#CC5500] focus-visible:border-[#CC5500] shadow-sm rounded-xl"
+            className="pl-9 pr-4 bg-white/55 backdrop-blur-xl border border-white/75 border-b-[#4E342E]/15 h-11 text-xs text-[#4E342E] placeholder:text-[#7E655D] focus-visible:bg-white/85 focus-visible:ring-2 focus-visible:ring-[#CC5500]/30 focus-visible:border-[#CC5500] shadow-[0_4px_16px_rgba(78,52,46,0.05),inset_0_1px_2px_rgba(255,255,255,0.9)] rounded-xl"
           />
         </div>
 
         <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="w-full md:w-auto">
-          <TabsList className="grid grid-cols-4 md:flex w-full md:w-auto bg-[#4E342E] border border-[#CC5500]/25 h-10 p-1 rounded-xl shadow-inner text-[#F8F4E7]">
+          <TabsList className="grid grid-cols-4 md:flex w-full md:w-auto bg-[#4E342E]/85 backdrop-blur-2xl border border-white/20 border-t-white/35 h-10.5 p-1 rounded-xl shadow-[0_8px_24px_rgba(78,52,46,0.2),inset_0_1px_1px_rgba(255,255,255,0.2)] text-[#F8F4E7]">
             <TabsTrigger 
               value="ALL" 
-              className="text-xs px-3.5 py-1.5 data-[state=active]:bg-[#CC5500] data-[state=active]:text-white data-[state=active]:font-bold data-[state=active]:shadow-sm text-[#F8F4E7]/80 hover:text-white"
+              className="text-xs px-3.5 py-1.5 data-[state=active]:bg-[#CC5500] data-[state=active]:text-white data-[state=active]:font-bold data-[state=active]:shadow-[0_4px_12px_rgba(204,85,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.45)] data-[state=active]:border data-[state=active]:border-white/30 text-[#F8F4E7]/80 hover:text-white"
             >
               All Lines
             </TabsTrigger>
             <TabsTrigger 
               value="AC" 
-              className="text-xs px-3.5 py-1.5 data-[state=active]:bg-[#CC5500] data-[state=active]:text-white data-[state=active]:font-bold data-[state=active]:shadow-sm text-[#F8F4E7]/80 hover:text-white"
+              className="text-xs px-3.5 py-1.5 data-[state=active]:bg-[#CC5500] data-[state=active]:text-white data-[state=active]:font-bold data-[state=active]:shadow-[0_4px_12px_rgba(204,85,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.45)] data-[state=active]:border data-[state=active]:border-white/30 text-[#F8F4E7]/80 hover:text-white"
             >
               AC Express
             </TabsTrigger>
             <TabsTrigger 
               value="ORDINARY" 
-              className="text-xs px-3.5 py-1.5 data-[state=active]:bg-[#CC5500] data-[state=active]:text-white data-[state=active]:font-bold data-[state=active]:shadow-sm text-[#F8F4E7]/80 hover:text-white"
+              className="text-xs px-3.5 py-1.5 data-[state=active]:bg-[#CC5500] data-[state=active]:text-white data-[state=active]:font-bold data-[state=active]:shadow-[0_4px_12px_rgba(204,85,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.45)] data-[state=active]:border data-[state=active]:border-white/30 text-[#F8F4E7]/80 hover:text-white"
             >
               Ordinary
             </TabsTrigger>
             <TabsTrigger 
               value="MINIBUS" 
-              className="text-xs px-3.5 py-1.5 data-[state=active]:bg-[#CC5500] data-[state=active]:text-white data-[state=active]:font-bold data-[state=active]:shadow-sm text-[#F8F4E7]/80 hover:text-white"
+              className="text-xs px-3.5 py-1.5 data-[state=active]:bg-[#CC5500] data-[state=active]:text-white data-[state=active]:font-bold data-[state=active]:shadow-[0_4px_12px_rgba(204,85,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.45)] data-[state=active]:border data-[state=active]:border-white/30 text-[#F8F4E7]/80 hover:text-white"
             >
               Minibus
             </TabsTrigger>
@@ -160,23 +160,23 @@ export default function HomePage() {
         {/* Left Column (5 Cols on Desktop) */}
         <div className="lg:col-span-5 space-y-4">
           
-          {/* ─── Selected Active Bus Hero Card (Dual-tone Chocolate & Cream) ─── */}
-          <div className="rounded-2xl overflow-hidden border border-[#4E342E]/20 shadow-[0_10px_30px_-8px_rgba(78,52,46,0.18)]">
+          {/* ─── Selected Active Bus Hero Card (Dual-tone Layered Glass) ─── */}
+          <div className="rounded-2xl overflow-hidden border border-white/60 border-b-[#4E342E]/15 shadow-[0_16px_40px_rgba(78,52,46,0.12),inset_0_1px_1px_rgba(255,255,255,0.9)]">
             
-            {/* Dark Chocolate Top Header Surface */}
-            <div className="bg-[#4E342E] text-[#F8F4E7] p-4.5 border-b border-[#CC5500]/30">
+            {/* Frosted Dark Chocolate Header */}
+            <div className="bg-[#4E342E]/86 backdrop-blur-2xl text-[#F8F4E7] p-5 border-b border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.25)]">
               <div className="flex items-start justify-between">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="bg-[#CC5500] text-white text-xs font-black px-2.5 py-0.5 rounded-lg shadow-sm tracking-wide">
+                    <span className="bg-[#CC5500] text-white text-xs font-black px-2.5 py-0.5 rounded-lg shadow-sm border border-white/30 tracking-wide">
                       {currentBus.busNumber}
                     </span>
-                    <span className="text-xs text-[#F8F4E7]/70 font-mono tracking-tight">{currentBus.regNumber}</span>
+                    <span className="text-xs text-[#F8F4E7]/75 font-mono tracking-tight">{currentBus.regNumber}</span>
                   </div>
                   <h3 className="text-base font-black text-[#F8F4E7] mt-2">
                     Toward {currentBus.destination}
                   </h3>
-                  <p className="text-xs text-[#F8F4E7]/80 flex items-center gap-1.5 mt-0.5">
+                  <p className="text-xs text-[#F8F4E7]/85 flex items-center gap-1.5 mt-0.5">
                     <MapPin className="h-3.5 w-3.5 text-[#CC5500] shrink-0" />
                     Approaching: <span className="text-white font-bold">{currentBus.nextStop}</span>
                   </p>
@@ -186,16 +186,16 @@ export default function HomePage() {
                   <span className="text-3xl font-black tracking-tight text-[#CC5500] font-mono tabular-nums block drop-shadow-sm">
                     {currentBus.etaNextStopMins}
                   </span>
-                  <span className="text-[10px] text-[#F8F4E7]/70 font-bold uppercase tracking-widest">mins ETA</span>
+                  <span className="text-[10px] text-[#F8F4E7]/75 font-bold uppercase tracking-widest">mins ETA</span>
                 </div>
               </div>
             </div>
 
-            {/* Warm Cream Glass Body */}
-            <div className="bg-[#F8F4E7]/95 p-4.5 space-y-4 backdrop-blur-md">
+            {/* Frosted Cream Translucent Body */}
+            <div className="bg-white/55 backdrop-blur-2xl p-5 space-y-4">
               
               {/* Telemetry Metrics Bar */}
-              <div className="grid grid-cols-3 gap-2 bg-[#4E342E]/8 p-2.5 rounded-xl border border-[#4E342E]/12 text-center">
+              <div className="grid grid-cols-3 gap-2 bg-white/65 backdrop-blur-md p-2.5 rounded-xl border border-white/85 text-center shadow-xs">
                 <div>
                   <div className="flex items-center justify-center gap-1 text-[#7E655D] text-[10px] uppercase font-bold tracking-wider">
                     <Gauge className="h-3 w-3 text-[#CC5500]" /> Speed
@@ -233,7 +233,7 @@ export default function HomePage() {
                 </div>
 
                 <div className="relative pt-1 pb-1">
-                  <div className="h-2 bg-[#4E342E]/12 rounded-full overflow-hidden">
+                  <div className="h-2 bg-[#4E342E]/10 rounded-full overflow-hidden shadow-inner">
                     <div className="h-full bg-[#CC5500] rounded-full w-3/5 transition-all duration-500 shadow-sm" />
                   </div>
                   <div className="flex justify-between text-[10px] text-[#7E655D] mt-1 font-bold">
@@ -244,9 +244,9 @@ export default function HomePage() {
                 </div>
               </div>
 
-              <Separator className="bg-[#4E342E]/12" />
+              <Separator className="bg-[#4E342E]/10" />
 
-              {/* Real GPS Crowdsourcing Trigger (Burnt Orange Action) */}
+              {/* Real GPS Crowdsourcing Trigger (Burnt Orange Glass Action) */}
               <div className="flex items-center justify-between gap-3 pt-1">
                 <div className="text-xs text-[#7E655D] leading-tight">
                   <span className="text-[#4E342E] font-bold block">On board this bus?</span>
@@ -268,9 +268,9 @@ export default function HomePage() {
                     }
                   }}
                   disabled={isSharingOtherBus || sharing.status === "locating"}
-                  className={`gap-1.5 text-xs font-bold shrink-0 ${
+                  className={`gap-1.5 text-xs font-bold shrink-0 rounded-xl ${
                     !isSharingCurrentBus 
-                      ? "bg-[#CC5500] hover:bg-[#B34700] text-white shadow-[0_4px_14px_rgba(204,85,0,0.35)]" 
+                      ? "bg-[#CC5500] hover:bg-[#B34700] text-white border border-white/30 shadow-[0_6px_20px_rgba(204,85,0,0.45),inset_0_1px_1px_rgba(255,255,255,0.4)]" 
                       : ""
                   }`}
                 >
@@ -284,7 +284,7 @@ export default function HomePage() {
               </div>
 
               {sharing.status === "sharing" && isSharingCurrentBus && (
-                <div className="p-2.5 rounded-xl bg-[#CC5500]/12 border border-[#CC5500]/30 text-[#4E342E] text-xs flex items-center justify-between font-medium">
+                <div className="p-2.5 rounded-xl bg-[#CC5500]/14 border border-[#CC5500]/35 text-[#4E342E] text-xs flex items-center justify-between font-medium shadow-xs">
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 shrink-0 text-[#CC5500]" />
                     <span>
@@ -304,7 +304,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* ─── Active Fleet Cards List ─── */}
+          {/* ─── Active Fleet Cards List (Frosted Glass Cards) ─── */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <h2 className="text-xs font-black uppercase tracking-wider text-[#4E342E]">
@@ -313,24 +313,24 @@ export default function HomePage() {
               <span className="text-[11px] text-[#CC5500] font-bold">● Live Synced</span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2.5">
               {filteredBuses.map((b, idx) => {
                 const isSelected = activeBusIndex === idx;
                 return (
                   <div
                     key={b.id}
                     onClick={() => setActiveBusIndex(idx)}
-                    className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
+                    className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
                       isSelected
-                        ? "bg-[#4E342E] text-[#F8F4E7] border-[#CC5500] border-l-4 border-l-[#CC5500] shadow-[0_6px_20px_rgba(78,52,46,0.22)] scale-[1.01]"
-                        : "bg-white/80 border-[#4E342E]/14 hover:border-[#CC5500]/40 hover:bg-white text-[#4E342E] shadow-sm"
+                        ? "bg-[#4E342E]/86 backdrop-blur-2xl text-[#F8F4E7] border-[#CC5500] border-l-4 border-l-[#CC5500] shadow-[0_12px_32px_rgba(78,52,46,0.28),inset_0_1px_1px_rgba(255,255,255,0.25)] scale-[1.01]"
+                        : "bg-white/50 backdrop-blur-xl hover:bg-white/70 text-[#4E342E] border-white/75 border-b-[#4E342E]/15 hover:border-[#CC5500]/40 shadow-[0_6px_20px_rgba(78,52,46,0.06),inset_0_1px_1px_rgba(255,255,255,0.85)]"
                     }`}
                   >
                     <div className="flex items-center gap-3">
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
                         isSelected 
-                          ? "bg-[#CC5500] text-white border-[#CC5500]/60 shadow-sm" 
-                          : "bg-[#4E342E]/8 text-[#CC5500] border-[#4E342E]/12"
+                          ? "bg-[#CC5500] text-white border-white/30 shadow-[0_2px_10px_rgba(204,85,0,0.4)]" 
+                          : "bg-white/60 text-[#CC5500] border-white/80 shadow-xs"
                       }`}>
                         <Bus className="h-4 w-4" />
                       </div>
@@ -339,14 +339,14 @@ export default function HomePage() {
                           <span className={`text-xs font-black ${isSelected ? "text-white" : "text-[#4E342E]"}`}>
                             {b.busNumber}
                           </span>
-                          <span className={`text-[10px] font-mono ${isSelected ? "text-[#F8F4E7]/70" : "text-[#7E655D]"}`}>
+                          <span className={`text-[10px] font-mono ${isSelected ? "text-[#F8F4E7]/75" : "text-[#7E655D]"}`}>
                             {b.regNumber}
                           </span>
                         </div>
                         <p className={`text-xs font-medium truncate mt-0.5 ${isSelected ? "text-[#F8F4E7]/90" : "text-[#4E342E]"}`}>
                           Toward {b.destination}
                         </p>
-                        <p className={`text-[10px] ${isSelected ? "text-[#F8F4E7]/70" : "text-[#7E655D]"}`}>
+                        <p className={`text-[10px] ${isSelected ? "text-[#F8F4E7]/75" : "text-[#7E655D]"}`}>
                           Near: <span className={`font-semibold ${isSelected ? "text-white" : "text-[#4E342E]"}`}>{b.nextStop}</span>
                         </p>
                       </div>
@@ -356,7 +356,7 @@ export default function HomePage() {
                       <span className="text-base font-black font-mono tabular-nums text-[#CC5500] block">
                         {b.etaNextStopMins}m
                       </span>
-                      <span className={`text-[10px] font-bold ${isSelected ? "text-[#F8F4E7]/70" : "text-[#7E655D]"}`}>
+                      <span className={`text-[10px] font-bold ${isSelected ? "text-[#F8F4E7]/75" : "text-[#7E655D]"}`}>
                         ETA
                       </span>
                     </div>
@@ -372,11 +372,11 @@ export default function HomePage() {
               Key Transit Junctions
             </h2>
 
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               {stops.slice(0, 4).map((stop) => (
                 <div
                   key={stop.id}
-                  className="p-2.5 rounded-xl bg-white/70 border border-[#4E342E]/14 hover:border-[#CC5500]/40 flex items-center justify-between text-xs transition-all shadow-sm"
+                  className="p-3 rounded-xl bg-white/45 backdrop-blur-xl border border-white/75 hover:bg-white/65 hover:border-[#CC5500]/40 flex items-center justify-between text-xs transition-all shadow-[0_4px_16px_rgba(78,52,46,0.04),inset_0_1px_1px_rgba(255,255,255,0.8)]"
                 >
                   <div className="flex items-center gap-2.5">
                     <MapPin className="h-3.5 w-3.5 text-[#CC5500] shrink-0" />
@@ -389,7 +389,7 @@ export default function HomePage() {
                     {stop.connectingRoutes?.slice(0, 3).map((r) => (
                       <span 
                         key={r} 
-                        className="text-[9px] px-1.5 py-0.5 rounded-md font-bold bg-[#4E342E]/10 text-[#4E342E] border border-[#4E342E]/15"
+                        className="text-[9px] px-1.5 py-0.5 rounded-md font-bold bg-[#4E342E]/10 text-[#4E342E] border border-white/60 shadow-xs"
                       >
                         {r}
                       </span>
@@ -404,21 +404,21 @@ export default function HomePage() {
 
         {/* Right Column (7 Cols on Desktop - Wide Interactive Map) */}
         <div className="lg:col-span-7 space-y-4">
-          <div className="rounded-2xl border border-[#4E342E]/18 bg-white/80 backdrop-blur-xl shadow-[0_10px_30px_-10px_rgba(78,52,46,0.12)] overflow-hidden">
+          <div className="rounded-2xl border border-white/60 bg-white/40 backdrop-blur-2xl shadow-[0_16px_40px_rgba(78,52,46,0.12),inset_0_1px_1px_rgba(255,255,255,0.85)] overflow-hidden">
             
-            {/* Dark Chocolate Map Control Header */}
-            <div className="p-3.5 bg-[#4E342E] text-[#F8F4E7] border-b border-[#CC5500]/30 flex flex-row items-center justify-between">
+            {/* Frosted Dark Chocolate Header Bar */}
+            <div className="p-4 bg-[#4E342E]/86 backdrop-blur-2xl text-[#F8F4E7] border-b border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.25)] flex flex-row items-center justify-between">
               <div>
                 <h3 className="text-sm font-bold text-[#F8F4E7] flex items-center gap-2">
                   <MapIcon className="h-4 w-4 text-[#CC5500]" />
                   Spatial Telemetry Map
                 </h3>
-                <p className="text-xs text-[#F8F4E7]/70">
+                <p className="text-xs text-[#F8F4E7]/75">
                   Interactive OpenStreetMap layer with live bus positions and stop nodes
                 </p>
               </div>
 
-              <span className="text-[10px] font-mono font-bold text-[#F8F4E7] bg-[#CC5500]/25 border border-[#CC5500]/40 px-2 py-0.5 rounded-md">
+              <span className="text-[10px] font-mono font-bold text-[#F8F4E7] bg-[#CC5500]/30 border border-white/30 px-2.5 py-1 rounded-md shadow-xs">
                 Kolkata Grid
               </span>
             </div>
@@ -437,9 +437,9 @@ export default function HomePage() {
           </div>
 
           {/* Spatial Architecture Footer Banner */}
-          <div className="p-3.5 rounded-2xl bg-white/75 border border-[#4E342E]/16 flex items-center justify-between text-xs shadow-sm backdrop-blur-md">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-[#CC5500] text-white flex items-center justify-center shrink-0 shadow-sm">
+          <div className="p-4 rounded-2xl bg-white/50 backdrop-blur-xl border border-white/80 flex items-center justify-between text-xs shadow-[0_8px_24px_rgba(78,52,46,0.06),inset_0_1px_1px_rgba(255,255,255,0.9)]">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-[#CC5500] text-white flex items-center justify-center shrink-0 border border-white/40 shadow-[0_2px_8px_rgba(204,85,0,0.35)]">
                 <Sparkles className="h-4 w-4 text-white" />
               </div>
               <div>
@@ -447,7 +447,7 @@ export default function HomePage() {
                 <span className="text-[10px] text-[#7E655D]">PostgreSQL + PostGIS telemetry with resilient zero-downtime fallback</span>
               </div>
             </div>
-            <span className="text-[10px] font-mono font-bold px-2 py-1 rounded-lg border border-[#4E342E]/20 text-[#4E342E] bg-white">
+            <span className="text-[10px] font-mono font-bold px-2.5 py-1 rounded-lg border border-white/70 text-[#4E342E] bg-white/60 shadow-xs">
               Port 5432
             </span>
           </div>
