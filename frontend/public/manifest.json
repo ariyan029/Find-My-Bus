@@ -1,7 +1,7 @@
 {
   "name": "PRAVAH - Real-Time Kolkata Transit Network",
   "short_name": "PRAVAH",
-  "description": "Live crowdsourced Kolkata bus tracking and dynamic ETAs on PRAVAH.",
+  "description": "Live crowdsourced Kolkata bus tracking, dynamic ETAs, and transit routing powered by PRAVAH.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#F8F4E7",
@@ -11,6 +11,21 @@
       "src": "/favicon.ico",
       "sizes": "64x64 32x32 24x24 16x16",
       "type": "image/x-icon"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "64x64",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
     }
   ]
 }

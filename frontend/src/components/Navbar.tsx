@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Bus, Radio, Compass, Bookmark, User, Activity, Sparkles, Navigation } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -22,19 +23,25 @@ export default function Navbar() {
     <header className="sticky top-0 z-40 w-full border-b border-[#4E342E]/12 bg-[#F8F4E7]/90 backdrop-blur-xl transition-all">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-15 flex items-center justify-between">
         
-        {/* Brand & Identity */}
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="w-8 h-8 rounded-xl bg-[#CC5500]/12 border border-[#CC5500]/30 flex items-center justify-center shadow-sm group-hover:bg-[#CC5500]/20 transition-colors">
-            <Bus className="h-4 w-4 text-[#CC5500]" />
+        {/* Brand & Identity with Official Pravah Logo */}
+        <Link href="/" className="flex items-center gap-2 group">
+          <div className="flex items-center">
+            <Image
+              src="/pravah-logo.png"
+              alt="PRAVAH"
+              width={126}
+              height={38}
+              className="h-8 sm:h-8.5 w-auto object-contain transition-transform group-hover:scale-[1.02]"
+              priority
+            />
           </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-base font-black tracking-wider text-[#4E342E]">PRAVAH</span>
-              <Badge variant="outline" className="text-[10px] py-0 px-1.5 h-4 border-[#CC5500]/35 text-[#CC5500] font-semibold bg-[#CC5500]/8">
+          <div className="hidden sm:flex flex-col justify-center border-l border-[#4E342E]/15 pl-2.5 ml-1">
+            <div className="flex items-center gap-1">
+              <Badge variant="outline" className="text-[9px] py-0 px-1.5 h-3.5 border-[#CC5500]/35 text-[#CC5500] font-semibold bg-[#CC5500]/8">
                 Kolkata
               </Badge>
             </div>
-            <p className="text-[10px] text-[#7E655D] font-medium hidden sm:block tracking-tight">Real-Time Transit Network</p>
+            <p className="text-[9px] text-[#7E655D] font-medium tracking-tight">Real-Time Transit</p>
           </div>
         </Link>
 

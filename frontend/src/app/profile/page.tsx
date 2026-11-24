@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import {
   User,
   Radio,
@@ -191,7 +192,14 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
 
-          <div className="p-4 rounded-2xl bg-white/60 border border-[#4E342E]/10 text-center">
+          <div className="p-4 rounded-2xl bg-white/70 backdrop-blur-md border border-[#4E342E]/10 text-center flex flex-col items-center justify-center gap-2 shadow-sm">
+            <Image
+              src="/pravah-logo.png"
+              alt="PRAVAH"
+              width={104}
+              height={30}
+              className="h-6 w-auto object-contain opacity-90"
+            />
             <p className="text-xs text-[#7E655D] font-medium">PRAVAH Urban Mobility Platform · Production v1.0.0</p>
           </div>
         </div>
