@@ -1,4 +1,5 @@
-import type { BusRoute, BusStop, RouteStopPoint } from "./data";
+import type { BusRoute, BusStop, LiveBus, RouteStopPoint } from "./data";
+import type { Occupancy, TelemetrySource } from "./enums";
 
 const EARTH_RADIUS_KM = 6371;
 
@@ -110,6 +111,27 @@ export function computeBusProgress(
   };
 }
 
+export interface JourneyScheduleInfo {
+  inServiceNow: boolean;
+  waitMins: number;
+  frequencyMins: number;
+  departureTimeLabel: string;
+  arrivalTimeLabel: string;
+  upcomingDepartures: string[];
+  serviceWindow: string;
+  trafficNote: "Peak Hour" | "Normal Traffic" | "Light Traffic" | "Next Morning Service";
+}
+
+export interface LiveRouteMatch {
+  busId: string;
+  busNumber: string;
+  regNumber: string;
+  nextStop: string;
+  etaNextStopMins: number;
+  occupancy: Occupancy;
+  telemetrySource: TelemetrySource;
+}
+
 export interface DirectJourney {
   route: BusRoute;
   direction: "forward" | "return";
@@ -118,39 +140,202 @@ export interface DirectJourney {
   stopsBetween: number;
   estMins: number;
   estFare: number;
+  schedule: JourneyScheduleInfo;
+  liveMatch?: LiveRouteMatch;
 }
 
 export interface ConnectingJourney {
   firstLeg: DirectJourney;
   secondLeg: DirectJourney;
   transferStop: string;
+  transferWaitMins: number;
   totalMins: number;
   totalFare: number;
+  departureTimeLabel: string;
+  arrivalTimeLabel: string;
 }
 
 export interface JourneySearchResult {
   resolvedFrom: string | null;
   resolvedTo: string | null;
+  searchTimeLabel: string;
   direct: DirectJourney[];
   connecting: ConnectingJourney[];
 }
+
+const STOP_ALIASES: Record<string, string> = {
+  dharmatala: "esplanade bus terminus",
+  esplanade: "esplanade bus terminus",
+  howrah: "howrah station",
+  sealdah: "sealdah station",
+  "sector 5": "salt lake sector v",
+  "sector v": "salt lake sector v",
+  sec5: "salt lake sector v",
+  wipro: "salt lake sector v",
+  karunamoyee: "salt lake karunamoyee",
+  "new town": "new town shapoorji",
+  newtown: "new town shapoorji",
+  shapoorji: "new town shapoorji",
+  sapoorji: "new town shapoorji",
+  airport: "netaji subhash airport (gate 1)",
+  ccu: "netaji subhash airport (gate 1)",
+  dumdum: "nagerbazar crossing",
+  jadavpur: "jadavpur 8b bus stand",
+  "8b": "jadavpur 8b bus stand",
+  gariahat: "gariahat junction",
+  garia: "garia bus stand",
+  shyambazar: "shyambazar five point",
+  ultadanga: "ultadanga hudco",
+  ruby: "ruby hospital crossing",
+  "science city": "science city more",
+  "park street": "park street crossing",
+  "park circus": "park circus 7 point",
+  exide: "exide / rabindra sadan",
+  "rabindra sadan": "exide / rabindra sadan",
+  hazra: "hazra more",
+  rashbehari: "rashbehari crossing",
+  kalighat: "rashbehari crossing",
+  tollygunge: "tollygunge phari",
+  dunlop: "dunlop crossing",
+  barrackpore: "barrackpore chiriamore",
+  barasat: "barasat chapadali",
+  madhyamgram: "madhyamgram chowmatha",
+  behala: "behala chowrasta",
+  joka: "joka / pailan",
+  pailan: "joka / pailan",
+  santragachi: "santragachi station",
+  alipore: "alipore zoo / hastings",
+  "eco park": "city centre ii / eco park",
+  "city centre 2": "city centre ii / eco park",
+  cc2: "city centre ii / eco park",
+};
 
 function normalizeText(value: string): string {
   return value.trim().toLowerCase();
 }
 
-function resolveStopIndex(route: BusRoute, query: string, stopsCatalog: BusStop[]): number {
+function expandQueryAlias(query: string): string {
   const q = normalizeText(query);
+  return STOP_ALIASES[q] ?? q;
+}
+
+function parseClockMins(hhmm: string | undefined, fallbackMins: number): number {
+  if (!hhmm) return fallbackMins;
+  const [hStr, mStr] = hhmm.split(":");
+  const h = Number(hStr);
+  const m = Number(mStr);
+  if (Number.isNaN(h) || Number.isNaN(m)) return fallbackMins;
+  return h * 60 + m;
+}
+
+function formatClockFromMins(totalMinsFromMidnight: number): string {
+  const wrapped = ((Math.round(totalMinsFromMidnight) % 1440) + 1440) % 1440;
+  const h24 = Math.floor(wrapped / 60);
+  const m = wrapped % 60;
+  const period = h24 >= 12 ? "PM" : "AM";
+  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+  return `${h12}:${String(m).padStart(2, "0")} ${period}`;
+}
+
+function getTrafficContext(minuteOfDay: number): {
+  isPeak: boolean;
+  multiplier: number;
+  label: "Peak Hour" | "Normal Traffic" | "Light Traffic";
+} {
+  const morningPeak = minuteOfDay >= 9 * 60 && minuteOfDay <= 11 * 60 + 30;
+  const eveningPeak = minuteOfDay >= 17 * 60 + 30 && minuteOfDay <= 20 * 60 + 30;
+  if (morningPeak || eveningPeak) {
+    return { isPeak: true, multiplier: 1.15, label: "Peak Hour" };
+  }
+  const lateOrEarly = minuteOfDay < 6 * 60 + 30 || minuteOfDay >= 21 * 60 + 30;
+  if (lateOrEarly) {
+    return { isPeak: false, multiplier: 0.9, label: "Light Traffic" };
+  }
+  return { isPeak: false, multiplier: 1.0, label: "Normal Traffic" };
+}
+
+function computeScheduleOutcome(
+  route: BusRoute,
+  boardingOffsetMins: number,
+  tripMins: number,
+  departureDate: Date
+): { adjustedTripMins: number; schedule: JourneyScheduleInfo } {
+  const nowMins = departureDate.getHours() * 60 + departureDate.getMinutes();
+  const traffic = getTrafficContext(nowMins);
+  const adjustedTripMins = Math.max(5, Math.round(tripMins * traffic.multiplier));
+
+  const firstMins = parseClockMins(route.firstBusTime, 5 * 60 + 30);
+  const lastMins = parseClockMins(route.lastBusTime, 22 * 60 + 15);
+  const effectiveFreq = Math.max(
+    4,
+    traffic.isPeak && route.peakFrequencyMins ? route.peakFrequencyMins : route.frequencyMins || 12
+  );
+
+  // Offset from route terminal to this boarding stop shifts scheduled pass-through times.
+  const firstAtStop = firstMins + boardingOffsetMins;
+  const lastAtStop = lastMins + boardingOffsetMins;
+  const serviceWindow = `${formatClockFromMins(firstMins)} – ${formatClockFromMins(lastMins)}`;
+
+  let inServiceNow = nowMins >= firstAtStop && nowMins <= lastAtStop;
+  let nextDepMins: number;
+
+  if (nowMins < firstAtStop) {
+    inServiceNow = false;
+    nextDepMins = firstAtStop;
+  } else if (nowMins > lastAtStop) {
+    inServiceNow = false;
+    nextDepMins = firstAtStop + 1440; // Next morning's first bus
+  } else {
+    const elapsed = nowMins - firstAtStop;
+    const cycles = Math.ceil(elapsed / effectiveFreq);
+    nextDepMins = firstAtStop + cycles * effectiveFreq;
+    if (nextDepMins === nowMins) {
+      nextDepMins += 1;
+    }
+    if (nextDepMins > lastAtStop) {
+      inServiceNow = false;
+      nextDepMins = firstAtStop + 1440;
+    }
+  }
+
+  const waitMins = Math.max(1, nextDepMins - nowMins);
+  const upcomingDepartures = [0, 1, 2].map((k) =>
+    formatClockFromMins(nextDepMins + k * effectiveFreq)
+  );
+
+  return {
+    adjustedTripMins,
+    schedule: {
+      inServiceNow,
+      waitMins,
+      frequencyMins: effectiveFreq,
+      departureTimeLabel: formatClockFromMins(nextDepMins),
+      arrivalTimeLabel: formatClockFromMins(nextDepMins + adjustedTripMins),
+      upcomingDepartures,
+      serviceWindow,
+      trafficNote: inServiceNow ? traffic.label : "Next Morning Service",
+    },
+  };
+}
+
+function findMatchingStop(query: string, stopsCatalog: BusStop[]): BusStop | undefined {
+  const expanded = expandQueryAlias(query);
+  const raw = normalizeText(query);
+  return stopsCatalog.find(
+    (s) =>
+      normalizeText(s.name) === expanded ||
+      normalizeText(s.code) === raw ||
+      normalizeText(s.bengaliName) === raw ||
+      normalizeText(s.name).includes(expanded) ||
+      normalizeText(s.bengaliName).includes(raw)
+  );
+}
+
+function resolveStopIndex(route: BusRoute, query: string, stopsCatalog: BusStop[]): number {
+  const q = expandQueryAlias(query);
   if (!q) return -1;
 
-  // Try matching a known stop first so aliases like "HWH" or "হাওড়া" resolve cleanly.
-  const matchedCatalogStop = stopsCatalog.find(
-    (s) =>
-      normalizeText(s.name) === q ||
-      normalizeText(s.code) === q ||
-      normalizeText(s.bengaliName) === q ||
-      normalizeText(s.name).includes(q)
-  );
+  const matchedCatalogStop = findMatchingStop(query, stopsCatalog);
 
   const routeNames = route.stopPoints?.map((p) => p.name) ?? route.stops;
   return routeNames.findIndex((name) => {
@@ -167,24 +352,42 @@ function resolveStopIndex(route: BusRoute, query: string, stopsCatalog: BusStop[
 function buildLeg(
   route: BusRoute,
   fromIdx: number,
-  toIdx: number
+  toIdx: number,
+  departureDate: Date,
+  liveBuses?: LiveBus[]
 ): DirectJourney {
   const names = route.stopPoints?.map((p) => p.name) ?? route.stops;
   const direction: "forward" | "return" = fromIdx <= toIdx ? "forward" : "return";
   const stopsBetween = Math.abs(toIdx - fromIdx);
   const totalSegments = Math.max(1, names.length - 1);
 
-  let estMins = Math.max(5, Math.round((stopsBetween / totalSegments) * route.avgTripMins));
+  let rawEstMins = Math.max(5, Math.round((stopsBetween / totalSegments) * route.avgTripMins));
   let estFare = route.fareMin;
+  let boardingOffsetMins = Math.round((fromIdx / totalSegments) * route.avgTripMins);
 
   if (route.stopPoints && route.stopPoints.length === names.length) {
     const fromPt = route.stopPoints[fromIdx];
     const toPt = route.stopPoints[toIdx];
     const timeDiff = Math.abs(toPt.typicalTimeMins - fromPt.typicalTimeMins);
-    if (timeDiff > 0) estMins = timeDiff;
+    if (timeDiff > 0) rawEstMins = timeDiff;
     const fareDiff = Math.abs(toPt.fareFromStart - fromPt.fareFromStart);
     estFare = Math.max(route.fareMin, fareDiff || route.fareMin);
+    boardingOffsetMins =
+      direction === "forward"
+        ? fromPt.typicalTimeMins
+        : Math.max(0, route.avgTripMins - fromPt.typicalTimeMins);
   }
+
+  const { adjustedTripMins, schedule } = computeScheduleOutcome(
+    route,
+    boardingOffsetMins,
+    rawEstMins,
+    departureDate
+  );
+
+  const matchedLive = liveBuses?.find(
+    (b) => b.routeId === route.id || b.busNumber.toLowerCase() === route.routeNumber.toLowerCase()
+  );
 
   return {
     route,
@@ -192,39 +395,55 @@ function buildLeg(
     fromStopName: names[fromIdx],
     toStopName: names[toIdx],
     stopsBetween,
-    estMins,
+    estMins: adjustedTripMins,
     estFare,
+    schedule,
+    ...(matchedLive && {
+      liveMatch: {
+        busId: matchedLive.id,
+        busNumber: matchedLive.busNumber,
+        regNumber: matchedLive.regNumber,
+        nextStop: matchedLive.nextStop,
+        etaNextStopMins: matchedLive.etaNextStopMins,
+        occupancy: matchedLive.occupancy,
+        telemetrySource: matchedLive.telemetrySource,
+      },
+    }),
   };
 }
 
 /**
- * Find direct and 1-transfer bus routes between two Kolkata stops.
+ * Find direct and 1-transfer bus routes between two Kolkata stops,
+ * complete with schedule windows, departure/arrival times, and fares.
  */
 export function findJourneys(
   fromQuery: string,
   toQuery: string,
   routes: BusRoute[],
-  stopsCatalog: BusStop[]
+  stopsCatalog: BusStop[],
+  options?: { departureTime?: Date; liveBuses?: LiveBus[] }
 ): JourneySearchResult {
+  const departureDate = options?.departureTime ?? new Date();
+  const liveBuses = options?.liveBuses;
+  const searchTimeLabel = formatClockFromMins(
+    departureDate.getHours() * 60 + departureDate.getMinutes()
+  );
+
   const cleanFrom = normalizeText(fromQuery);
   const cleanTo = normalizeText(toQuery);
 
-  if (!cleanFrom || !cleanTo || cleanFrom === cleanTo) {
-    return { resolvedFrom: null, resolvedTo: null, direct: [], connecting: [] };
+  if (!cleanFrom || !cleanTo || expandQueryAlias(cleanFrom) === expandQueryAlias(cleanTo)) {
+    return {
+      resolvedFrom: null,
+      resolvedTo: null,
+      searchTimeLabel,
+      direct: [],
+      connecting: [],
+    };
   }
 
-  const fromStopMatch = stopsCatalog.find(
-    (s) =>
-      normalizeText(s.name).includes(cleanFrom) ||
-      normalizeText(s.code) === cleanFrom ||
-      normalizeText(s.bengaliName).includes(cleanFrom)
-  );
-  const toStopMatch = stopsCatalog.find(
-    (s) =>
-      normalizeText(s.name).includes(cleanTo) ||
-      normalizeText(s.code) === cleanTo ||
-      normalizeText(s.bengaliName).includes(cleanTo)
-  );
+  const fromStopMatch = findMatchingStop(fromQuery, stopsCatalog);
+  const toStopMatch = findMatchingStop(toQuery, stopsCatalog);
 
   const direct: DirectJourney[] = [];
   const startRoutes: Array<{ route: BusRoute; fromIdx: number }> = [];
@@ -235,13 +454,17 @@ export function findJourneys(
     const toIdx = resolveStopIndex(route, toQuery, stopsCatalog);
 
     if (fromIdx >= 0 && toIdx >= 0 && fromIdx !== toIdx) {
-      direct.push(buildLeg(route, fromIdx, toIdx));
+      direct.push(buildLeg(route, fromIdx, toIdx, departureDate, liveBuses));
     }
     if (fromIdx >= 0) startRoutes.push({ route, fromIdx });
     if (toIdx >= 0) endRoutes.push({ route, toIdx });
   }
 
-  direct.sort((a, b) => (a.direction === b.direction ? a.estMins - b.estMins : a.direction === "forward" ? -1 : 1));
+  direct.sort((a, b) => {
+    if (a.liveMatch && !b.liveMatch) return -1;
+    if (!a.liveMatch && b.liveMatch) return 1;
+    return a.estMins - b.estMins;
+  });
 
   // Compute 1-transfer connections when direct options are absent or limited.
   const connecting: ConnectingJourney[] = [];
@@ -263,14 +486,24 @@ export function findJourneys(
         if (seenPairs.has(pairKey)) continue;
         seenPairs.add(pairKey);
 
-        const firstLeg = buildLeg(s.route, s.fromIdx, i);
-        const secondLeg = buildLeg(e.route, j, e.toIdx);
+        const firstLeg = buildLeg(s.route, s.fromIdx, i, departureDate, liveBuses);
+        // Align second leg departure to when the rider arrives at the transfer stop + 4m walk/buffer.
+        const arrivalAtTransfer = new Date(
+          departureDate.getTime() + (firstLeg.schedule.waitMins + firstLeg.estMins + 4) * 60_000
+        );
+        const secondLeg = buildLeg(e.route, j, e.toIdx, arrivalAtTransfer, liveBuses);
+        const transferWaitMins = 4 + secondLeg.schedule.waitMins;
+        const totalMins = firstLeg.estMins + transferWaitMins + secondLeg.estMins;
+
         connecting.push({
           firstLeg,
           secondLeg,
           transferStop: transferName,
-          totalMins: firstLeg.estMins + secondLeg.estMins + 6,
+          transferWaitMins,
+          totalMins,
           totalFare: firstLeg.estFare + secondLeg.estFare,
+          departureTimeLabel: firstLeg.schedule.departureTimeLabel,
+          arrivalTimeLabel: secondLeg.schedule.arrivalTimeLabel,
         });
       }
     }
@@ -281,7 +514,8 @@ export function findJourneys(
   return {
     resolvedFrom: fromStopMatch?.name ?? fromQuery.trim(),
     resolvedTo: toStopMatch?.name ?? toQuery.trim(),
+    searchTimeLabel,
     direct,
-    connecting: connecting.slice(0, 4),
+    connecting: connecting.slice(0, 6),
   };
 }

@@ -161,21 +161,23 @@ export async function getLiveBusesWithMeta(filterRoute?: string): Promise<LiveBu
   return { buses: getMemoryLiveBuses(filterRoute), storageMode: "memory" };
 }
 
+function matchesRouteQuery(route: BusRoute, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  return (
+    route.routeNumber.toLowerCase().includes(q) ||
+    route.name.toLowerCase().includes(q) ||
+    route.source.toLowerCase().includes(q) ||
+    route.destination.toLowerCase().includes(q) ||
+    route.stops.some((s) => s.toLowerCase().includes(q))
+  );
+}
+
 export async function getRoutes(query?: string): Promise<BusRoute[]> {
   const db = getPrisma();
   if (db) {
     try {
       const dbRoutes = await db.route.findMany({
-        where: query
-          ? {
-              OR: [
-                { routeNumber: { contains: query, mode: "insensitive" } },
-                { name: { contains: query, mode: "insensitive" } },
-                { source: { contains: query, mode: "insensitive" } },
-                { destination: { contains: query, mode: "insensitive" } },
-              ],
-            }
-          : undefined,
         include: {
           routeStops: {
             include: { stop: true },
@@ -185,7 +187,7 @@ export async function getRoutes(query?: string): Promise<BusRoute[]> {
       });
 
       if (dbRoutes.length > 0) {
-        return dbRoutes.map((r) => {
+        const mapped: BusRoute[] = dbRoutes.map((r) => {
           const fallback = KOLKATA_ROUTES.find((fr) => fr.routeNumber === r.routeNumber);
           const stopPoints: RouteStopPoint[] | undefined =
             r.routeStops.length > 0
@@ -217,28 +219,27 @@ export async function getRoutes(query?: string): Promise<BusRoute[]> {
             fareMin: r.fareMin,
             fareMax: r.fareMax,
             frequencyMins: fallback?.frequencyMins ?? 10,
+            peakFrequencyMins: fallback?.peakFrequencyMins ?? fallback?.frequencyMins ?? 10,
+            firstBusTime: fallback?.firstBusTime ?? "05:30",
+            lastBusTime: fallback?.lastBusTime ?? "22:15",
             stops,
             stopPoints,
           };
         });
+
+        const existingNumbers = new Set(mapped.map((r) => r.routeNumber.toLowerCase()));
+        const merged = [
+          ...mapped,
+          ...KOLKATA_ROUTES.filter((fr) => !existingNumbers.has(fr.routeNumber.toLowerCase())),
+        ];
+        return query ? merged.filter((r) => matchesRouteQuery(r, query)) : merged;
       }
     } catch {
       // Fallback
     }
   }
 
-  let routes = KOLKATA_ROUTES;
-  if (query) {
-    const q = query.toLowerCase();
-    routes = routes.filter(
-      (r) =>
-        r.routeNumber.toLowerCase().includes(q) ||
-        r.name.toLowerCase().includes(q) ||
-        r.source.toLowerCase().includes(q) ||
-        r.destination.toLowerCase().includes(q)
-    );
-  }
-  return routes;
+  return query ? KOLKATA_ROUTES.filter((r) => matchesRouteQuery(r, query)) : KOLKATA_ROUTES;
 }
 
 export async function getStops(): Promise<BusStop[]> {
@@ -251,10 +252,10 @@ export async function getStops(): Promise<BusStop[]> {
             include: { route: { select: { routeNumber: true } } },
           },
         },
-        take: 100,
+        take: 500,
       });
       if (dbStops.length > 0) {
-        return dbStops.map((s) => ({
+        const mapped: BusStop[] = dbStops.map((s) => ({
           id: s.id,
           name: s.name,
           bengaliName: s.bengaliName || s.name,
@@ -267,6 +268,11 @@ export async function getStops(): Promise<BusStop[]> {
             new Set(s.routeStops.map((rs) => rs.route.routeNumber))
           ),
         }));
+        const existingIds = new Set(mapped.map((s) => s.id));
+        return [
+          ...mapped,
+          ...KOLKATA_STOPS.filter((fs) => !existingIds.has(fs.id)),
+        ];
       }
     } catch {
       // Fallback

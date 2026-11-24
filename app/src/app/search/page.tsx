@@ -13,14 +13,107 @@ import {
   Bookmark,
   Bus,
   Repeat,
+  Radio,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { KOLKATA_ROUTES, KOLKATA_STOPS, BusRoute } from "@/lib/data";
-import { useRoutes, useStops } from "@/lib/api";
+import { ACTIVE_LIVE_BUSES, KOLKATA_ROUTES, KOLKATA_STOPS, BusRoute, BusStop } from "@/lib/data";
+import { useLiveBuses, useRoutes, useStops } from "@/lib/api";
 import { findJourneys, JourneySearchResult } from "@/lib/transit";
 import { useSavedTransit } from "@/lib/useSavedTransit";
+
+type TimePreset = "now" | "morning" | "afternoon" | "evening";
+
+function resolvePresetDate(preset: TimePreset): Date {
+  const d = new Date();
+  if (preset === "morning") {
+    d.setHours(9, 0, 0, 0);
+  } else if (preset === "afternoon") {
+    d.setHours(13, 30, 0, 0);
+  } else if (preset === "evening") {
+    d.setHours(18, 0, 0, 0);
+  }
+  return d;
+}
+
+function StopAutocompleteInput({
+  value,
+  onChange,
+  stops,
+  placeholder,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  stops: BusStop[];
+  placeholder: string;
+}) {
+  const [open, setOpen] = React.useState(false);
+
+  const suggestions = React.useMemo(() => {
+    const q = value.trim().toLowerCase();
+    const list = !q
+      ? stops.slice(0, 8)
+      : stops
+          .filter(
+            (s) =>
+              s.name.toLowerCase().includes(q) ||
+              s.bengaliName.toLowerCase().includes(q) ||
+              s.code.toLowerCase().includes(q) ||
+              s.zone.toLowerCase().includes(q) ||
+              s.landmark.toLowerCase().includes(q)
+          )
+          .slice(0, 8);
+    return list;
+  }, [value, stops]);
+
+  return (
+    <div className="relative">
+      <Input
+        value={value}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onChange={(e) => {
+          onChange(e.target.value);
+          setOpen(true);
+        }}
+        placeholder={placeholder}
+        className="bg-white/60 backdrop-blur-md border border-white/80 h-10.5 text-xs text-[#4E342E] focus-visible:bg-white/85 focus-visible:ring-2 focus-visible:ring-[#CC5500]/30 focus-visible:border-[#CC5500] shadow-[inset_0_1px_2px_rgba(255,255,255,0.9)] rounded-xl"
+      />
+      {open && suggestions.length > 0 && (
+        <div className="absolute left-0 right-0 top-full mt-1 z-30 rounded-xl border border-[#4E342E]/15 bg-white/95 backdrop-blur-2xl shadow-[0_14px_32px_rgba(78,52,46,0.18)] max-h-56 overflow-y-auto py-1">
+          {suggestions.map((stop) => (
+            <button
+              key={stop.id}
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                onChange(stop.name);
+                setOpen(false);
+              }}
+              className="w-full text-left px-3 py-2 hover:bg-[#CC5500]/10 transition-colors flex items-center justify-between gap-2 cursor-pointer"
+            >
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-[#4E342E] truncate">
+                  {stop.name}
+                  <span className="ml-1.5 text-[10px] font-medium text-[#7E655D]">
+                    {stop.bengaliName}
+                  </span>
+                </div>
+                <div className="text-[10px] text-[#7E655D] truncate">
+                  {stop.zone} · {stop.landmark}
+                </div>
+              </div>
+              <span className="shrink-0 text-[10px] font-mono font-bold text-[#CC5500] bg-[#CC5500]/10 px-1.5 py-0.5 rounded">
+                {stop.connectingRoutes.length} lines
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function SearchPageContent({
   fromParam,
@@ -31,13 +124,16 @@ function SearchPageContent({
 }) {
   const { data: apiRoutes } = useRoutes();
   const { data: apiStops } = useStops();
+  const { data: apiBuses } = useLiveBuses(15000);
   const { savedRouteIds, toggleSavedRoute, addRecentSearch } = useSavedTransit();
 
   const routes = apiRoutes.length > 0 ? apiRoutes : KOLKATA_ROUTES;
   const stops = apiStops.length > 0 ? apiStops : KOLKATA_STOPS;
+  const liveBuses = apiBuses.length > 0 ? apiBuses : ACTIVE_LIVE_BUSES;
 
   const [sourceStop, setSourceStop] = React.useState<string>(fromParam || "Howrah Station");
-  const [destStop, setDestStop] = React.useState<string>(toParam || "New Town Shapoorji");
+  const [destStop, setDestStop] = React.useState<string>(toParam || "Salt Lake Sector V");
+  const [timePreset, setTimePreset] = React.useState<TimePreset>("now");
   const [filterType, setFilterType] = React.useState<string>("ALL");
   const [searchWord, setSearchWord] = React.useState<string>("");
   const [selectedRouteId, setSelectedRouteId] = React.useState<string | null>(null);
@@ -47,8 +143,11 @@ function SearchPageContent({
 
   const journeyResults = React.useMemo<JourneySearchResult | null>(() => {
     if (!activeQuery) return null;
-    return findJourneys(activeQuery.from, activeQuery.to, routes, stops);
-  }, [activeQuery, routes, stops]);
+    return findJourneys(activeQuery.from, activeQuery.to, routes, stops, {
+      departureTime: resolvePresetDate(timePreset),
+      liveBuses,
+    });
+  }, [activeQuery, routes, stops, timePreset, liveBuses]);
 
   const selectedRoute = React.useMemo<BusRoute | null>(() => {
     if (selectedRouteId) {
@@ -66,7 +165,10 @@ function SearchPageContent({
       const cleanTo = toVal.trim();
       if (!cleanFrom || !cleanTo) return;
       setActiveQuery({ from: cleanFrom, to: cleanTo });
-      const res = findJourneys(cleanFrom, cleanTo, routes, stops);
+      const res = findJourneys(cleanFrom, cleanTo, routes, stops, {
+        departureTime: resolvePresetDate(timePreset),
+        liveBuses,
+      });
       if (res.direct.length > 0) {
         setSelectedRouteId(res.direct[0].route.id);
       }
@@ -77,7 +179,7 @@ function SearchPageContent({
       const summary = [...directNums, ...connNums.slice(0, 1)].join(", ") || "No direct match";
       addRecentSearch(res.resolvedFrom || cleanFrom, res.resolvedTo || cleanTo, summary);
     },
-    [routes, stops, addRecentSearch]
+    [routes, stops, timePreset, liveBuses, addRecentSearch]
   );
 
   const handleSwap = () => {
@@ -86,15 +188,18 @@ function SearchPageContent({
   };
 
   const filteredRoutes = React.useMemo(() => {
+    const q = searchWord.trim().toLowerCase();
     return routes.filter((r) => {
       const matchSearch =
-        r.routeNumber.toLowerCase().includes(searchWord.toLowerCase()) ||
-        r.name.toLowerCase().includes(searchWord.toLowerCase()) ||
-        r.source.toLowerCase().includes(searchWord.toLowerCase()) ||
-        r.destination.toLowerCase().includes(searchWord.toLowerCase());
+        !q ||
+        r.routeNumber.toLowerCase().includes(q) ||
+        r.name.toLowerCase().includes(q) ||
+        r.source.toLowerCase().includes(q) ||
+        r.destination.toLowerCase().includes(q) ||
+        r.stops.some((s) => s.toLowerCase().includes(q));
 
       if (!matchSearch) return false;
-      if (filterType === "AC") return r.busType === "AC_EXPRESS";
+      if (filterType === "AC") return r.busType === "AC_EXPRESS" || r.busType === "ELECTRIC";
       if (filterType === "ORDINARY") return r.busType === "ORDINARY";
       if (filterType === "MINIBUS") return r.busType === "MINIBUS";
       return true;
@@ -107,6 +212,7 @@ function SearchPageContent({
     "Salt Lake Sector V",
     "Netaji Subhash Airport (Gate 1)",
     "Gariahat Junction",
+    "Jadavpur 8B Bus Stand",
   ];
 
   return (
@@ -119,29 +225,21 @@ function SearchPageContent({
               Route Navigator & Planner
             </h1>
             <span className="bg-[#CC5500] text-white text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-md border border-white/30 shadow-sm">
-              {routes.length} Verified Lines
+              {routes.length} Kolkata Lines
             </span>
           </div>
           <p className="text-xs text-[#F8F4E7]/85 mt-1 max-w-xl leading-relaxed">
-            Plan direct corridors, 1-transfer connections, fare bands, and jump straight to live bus tracking
+            Search real WBTC, CSTC & private Kolkata bus numbers, next departure & arrival times, 1-transfer links, and fares
           </p>
         </div>
 
         <div className="flex items-center gap-2.5 self-start sm:self-auto shrink-0">
           <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-black/25 backdrop-blur-xl border border-white/20 text-[#F8F4E7] text-xs font-bold shadow-inner">
             <Compass className="h-4 w-4 text-[#CC5500]" />
-            <span>Kolkata Transit Network</span>
+            <span>{stops.length} Kolkata Stops</span>
           </div>
         </div>
       </div>
-
-      <datalist id="kolkata-stops-datalist">
-        {stops.map((s) => (
-          <option key={s.id} value={s.name}>
-            {s.bengaliName} ({s.code})
-          </option>
-        ))}
-      </datalist>
 
       {/* ─── Responsive Grid ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
@@ -153,17 +251,39 @@ function SearchPageContent({
               e.preventDefault();
               runJourneySearch(sourceStop, destStop);
             }}
-            className="rounded-2xl overflow-hidden border border-white/60 border-b-[#4E342E]/15 bg-white/55 backdrop-blur-2xl shadow-[0_16px_40px_rgba(78,52,46,0.12),inset_0_1px_1px_rgba(255,255,255,0.9)]"
+            className="rounded-2xl overflow-visible border border-white/60 border-b-[#4E342E]/15 bg-white/55 backdrop-blur-2xl shadow-[0_16px_40px_rgba(78,52,46,0.12),inset_0_1px_1px_rgba(255,255,255,0.9)]"
           >
-            <div className="bg-[#4E342E]/86 backdrop-blur-2xl text-[#F8F4E7] p-4 border-b border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.25)] flex items-center justify-between">
+            <div className="bg-[#4E342E]/86 backdrop-blur-2xl text-[#F8F4E7] p-4 rounded-t-2xl border-b border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.25)] flex items-center justify-between gap-2 flex-wrap">
               <span className="text-xs font-black uppercase tracking-wider text-[#F8F4E7] flex items-center gap-2">
                 <Navigation className="h-4 w-4 text-[#CC5500]" />
                 Journey Origin & Destination
               </span>
-              <span className="text-[10px] text-[#F8F4E7]/75 font-mono">Stop-to-Stop Finder</span>
+              <div className="flex items-center gap-1 bg-black/25 p-1 rounded-lg border border-white/15">
+                {(
+                  [
+                    ["now", "Leave Now"],
+                    ["morning", "9:00 AM"],
+                    ["afternoon", "1:30 PM"],
+                    ["evening", "6:00 PM"],
+                  ] as const
+                ).map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setTimePreset(key)}
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors cursor-pointer ${
+                      timePreset === key
+                        ? "bg-[#CC5500] text-white"
+                        : "text-[#F8F4E7]/75 hover:text-white"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <div className="p-5 space-y-4 bg-white/40 backdrop-blur-xl">
+            <div className="p-5 space-y-4 bg-white/40 backdrop-blur-xl rounded-b-2xl">
               <div className="flex items-center gap-3">
                 <div className="flex flex-col items-center gap-1">
                   <div className="w-3.5 h-3.5 rounded-full bg-[#CC5500] ring-4 ring-[#CC5500]/25 shadow-sm" />
@@ -172,19 +292,17 @@ function SearchPageContent({
                 </div>
 
                 <div className="flex-1 space-y-2.5">
-                  <Input
-                    list="kolkata-stops-datalist"
+                  <StopAutocompleteInput
                     value={sourceStop}
-                    onChange={(e) => setSourceStop(e.target.value)}
-                    placeholder="Origin stop (e.g. Howrah Station)"
-                    className="bg-white/60 backdrop-blur-md border border-white/80 h-10.5 text-xs text-[#4E342E] focus-visible:bg-white/85 focus-visible:ring-2 focus-visible:ring-[#CC5500]/30 focus-visible:border-[#CC5500] shadow-[inset_0_1px_2px_rgba(255,255,255,0.9)] rounded-xl"
+                    onChange={setSourceStop}
+                    stops={stops}
+                    placeholder="Origin stop (e.g. Howrah, Esplanade, Behala, Dum Dum...)"
                   />
-                  <Input
-                    list="kolkata-stops-datalist"
+                  <StopAutocompleteInput
                     value={destStop}
-                    onChange={(e) => setDestStop(e.target.value)}
-                    placeholder="Destination (e.g. Salt Lake Sector V)"
-                    className="bg-white/60 backdrop-blur-md border border-white/80 h-10.5 text-xs text-[#4E342E] focus-visible:bg-white/85 focus-visible:ring-2 focus-visible:ring-[#CC5500]/30 focus-visible:border-[#CC5500] shadow-[inset_0_1px_2px_rgba(255,255,255,0.9)] rounded-xl"
+                    onChange={setDestStop}
+                    stops={stops}
+                    placeholder="Destination (e.g. Sector V, Airport, Gariahat, Jadavpur...)"
                   />
                 </div>
 
@@ -213,7 +331,7 @@ function SearchPageContent({
                     }}
                     className="px-2.5 py-1 rounded-lg bg-white/65 hover:bg-[#CC5500] hover:text-white border border-white/85 text-[10px] font-bold text-[#4E342E] transition-all cursor-pointer shadow-xs"
                   >
-                    {stopName.replace(" Bus Terminus", "").replace(" (Gate 1)", "")}
+                    {stopName.replace(" Bus Terminus", "").replace(" Bus Stand", "").replace(" (Gate 1)", "")}
                   </button>
                 ))}
               </div>
@@ -222,7 +340,7 @@ function SearchPageContent({
                 type="submit"
                 className="w-full bg-[#CC5500] hover:bg-[#B34700] text-white text-xs font-bold h-10.5 border border-white/35 shadow-[0_6px_20px_rgba(204,85,0,0.45),inset_0_1px_1px_rgba(255,255,255,0.4)] rounded-xl"
               >
-                Find Direct & Connecting Buses
+                Find Kolkata Buses & Timings
               </Button>
             </div>
           </form>
@@ -230,10 +348,16 @@ function SearchPageContent({
           {/* Journey Planner Results */}
           {journeyResults && (
             <div className="rounded-2xl border border-[#CC5500]/30 bg-white/65 backdrop-blur-2xl p-4 space-y-3 shadow-[0_12px_32px_rgba(78,52,46,0.08)]">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-black uppercase tracking-wider text-[#4E342E]">
-                  Matches: {journeyResults.resolvedFrom} → {journeyResults.resolvedTo}
-                </h3>
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div>
+                  <h3 className="text-xs font-black uppercase tracking-wider text-[#4E342E]">
+                    {journeyResults.resolvedFrom} → {journeyResults.resolvedTo}
+                  </h3>
+                  <p className="text-[10px] text-[#7E655D] font-mono">
+                    Departing around {journeyResults.searchTimeLabel} · {journeyResults.direct.length} direct,{" "}
+                    {journeyResults.connecting.length} connecting
+                  </p>
+                </div>
                 <button
                   type="button"
                   onClick={() => setActiveQuery(null)}
@@ -253,23 +377,50 @@ function SearchPageContent({
                     <div
                       key={`${leg.route.id}-${leg.direction}`}
                       onClick={() => setSelectedRouteId(leg.route.id)}
-                      className="p-3 rounded-xl bg-white/80 border border-white/90 hover:border-[#CC5500]/50 flex items-center justify-between gap-3 cursor-pointer transition-all"
+                      className="p-3.5 rounded-xl bg-white/85 border border-white/95 hover:border-[#CC5500]/50 flex items-center justify-between gap-3 cursor-pointer transition-all shadow-xs"
                     >
-                      <div className="space-y-1 min-w-0">
+                      <div className="space-y-1.5 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="bg-[#CC5500] text-white text-[11px] font-black px-2 py-0.5 rounded-md">
                             {leg.route.routeNumber}
                           </span>
                           <span className="text-[10px] font-bold uppercase text-emerald-700 bg-emerald-500/10 px-2 py-0.5 rounded-md">
-                            Direct ({leg.stopsBetween} stops)
+                            Direct · {leg.stopsBetween} stops
                           </span>
-                          <span className="text-xs font-bold text-[#4E342E] truncate">
-                            {leg.fromStopName} → {leg.toStopName}
+                          <span className="text-[10px] font-bold text-[#4E342E]/75 bg-[#4E342E]/8 px-2 py-0.5 rounded-md">
+                            {leg.route.operator}
+                          </span>
+                          {leg.liveMatch && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#CC5500] bg-[#CC5500]/10 px-2 py-0.5 rounded-md">
+                              <Radio className="h-2.5 w-2.5 animate-pulse" />
+                              Live at {leg.liveMatch.nextStop} ({leg.liveMatch.etaNextStopMins}m)
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-wrap text-xs font-black text-[#4E342E] font-mono tabular-nums">
+                          <span>
+                            {leg.schedule.departureTimeLabel} → {leg.schedule.arrivalTimeLabel}
+                          </span>
+                          <span className="text-[#CC5500]">({leg.estMins} min)</span>
+                          <span className="text-[11px] font-sans font-bold text-[#7E655D]">
+                            · ₹{leg.estFare}
                           </span>
                         </div>
-                        <p className="text-[11px] text-[#7E655D]">
-                          Est. {leg.estMins} mins · ₹{leg.estFare} · Every {leg.route.frequencyMins}m
-                        </p>
+
+                        <div className="flex items-center gap-2 flex-wrap text-[11px] text-[#7E655D]">
+                          <span className="font-semibold text-[#4E342E]">
+                            {leg.schedule.inServiceNow
+                              ? `Next bus in ${leg.schedule.waitMins}m`
+                              : `Off-hours · First bus ${leg.schedule.departureTimeLabel}`}
+                          </span>
+                          <span>·</span>
+                          <span>Every {leg.schedule.frequencyMins}m ({leg.schedule.trafficNote})</span>
+                        </div>
+
+                        <div className="text-[10px] text-[#7E655D] font-mono">
+                          Next departures: {leg.schedule.upcomingDepartures.join(" · ")}
+                        </div>
                       </div>
                       <Link
                         href={`/?route=${encodeURIComponent(leg.route.routeNumber)}`}
@@ -286,24 +437,32 @@ function SearchPageContent({
                   {journeyResults.connecting.map((conn, i) => (
                     <div
                       key={`${conn.firstLeg.route.id}-${conn.secondLeg.route.id}-${i}`}
-                      className="p-3 rounded-xl bg-[#F8F4E7]/85 border border-[#4E342E]/15 flex items-center justify-between gap-3"
+                      className="p-3.5 rounded-xl bg-[#F8F4E7]/90 border border-[#4E342E]/15 flex items-center justify-between gap-3"
                     >
-                      <div className="space-y-1 min-w-0">
+                      <div className="space-y-1.5 min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap text-xs font-bold text-[#4E342E]">
                           <Repeat className="h-3.5 w-3.5 text-[#CC5500]" />
                           <span className="bg-[#4E342E] text-white text-[10px] px-2 py-0.5 rounded">
                             {conn.firstLeg.route.routeNumber}
                           </span>
                           <ArrowRight className="h-3 w-3 text-[#7E655D]" />
-                          <span className="text-[11px] text-[#CC5500]">Change at {conn.transferStop}</span>
+                          <span className="text-[11px] text-[#CC5500]">
+                            Change at {conn.transferStop} (~{conn.transferWaitMins}m wait)
+                          </span>
                           <ArrowRight className="h-3 w-3 text-[#7E655D]" />
                           <span className="bg-[#CC5500] text-white text-[10px] px-2 py-0.5 rounded">
                             {conn.secondLeg.route.routeNumber}
                           </span>
                         </div>
-                        <p className="text-[11px] text-[#7E655D]">
-                          Total ~{conn.totalMins} mins · Est. ₹{conn.totalFare}
-                        </p>
+                        <div className="flex items-center gap-2 flex-wrap text-xs font-black text-[#4E342E] font-mono tabular-nums">
+                          <span>
+                            {conn.departureTimeLabel} → {conn.arrivalTimeLabel}
+                          </span>
+                          <span className="text-[#CC5500]">({conn.totalMins} min total)</span>
+                          <span className="text-[11px] font-sans font-bold text-[#7E655D]">
+                            · Est. ₹{conn.totalFare}
+                          </span>
+                        </div>
                       </div>
                       <Link href={`/?route=${encodeURIComponent(conn.firstLeg.route.routeNumber)}`}>
                         <Button size="sm" variant="outline" className="h-8 text-[11px] font-bold rounded-lg">
@@ -324,7 +483,7 @@ function SearchPageContent({
               <Input
                 value={searchWord}
                 onChange={(e) => setSearchWord(e.target.value)}
-                placeholder="Filter route number or terminal..."
+                placeholder="Filter by route (e.g. 45, AC-1, 12C) or any stop name..."
                 className="pl-9 bg-white/55 backdrop-blur-xl border border-white/75 border-b-[#4E342E]/15 h-10 text-xs text-[#4E342E] focus-visible:bg-white/85 focus-visible:ring-2 focus-visible:ring-[#CC5500]/30 focus-visible:border-[#CC5500] rounded-xl shadow-[0_4px_16px_rgba(78,52,46,0.04),inset_0_1px_2px_rgba(255,255,255,0.9)]"
               />
             </div>
@@ -501,6 +660,14 @@ function SearchPageContent({
                     </span>
                   </div>
                 </div>
+                {(selectedRoute.firstBusTime || selectedRoute.lastBusTime) && (
+                  <div className="flex items-center justify-between text-[11px] px-3 py-2 rounded-lg bg-[#F8F4E7]/80 border border-[#4E342E]/10 text-[#4E342E]">
+                    <span className="font-bold">Daily Service Hours</span>
+                    <span className="font-mono font-bold text-[#CC5500]">
+                      {selectedRoute.firstBusTime ?? "05:30"} – {selectedRoute.lastBusTime ?? "22:15"}
+                    </span>
+                  </div>
+                )}
 
                 {/* Stop by Stop Vertical Timeline */}
                 <div className="space-y-2 pt-1">

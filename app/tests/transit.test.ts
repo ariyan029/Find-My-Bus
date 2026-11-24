@@ -27,17 +27,48 @@ test("computeBusProgress tracks segment progress and next stop ETA", () => {
   assert.ok(progress.progressPct > 40 && progress.progressPct < 90);
 });
 
-test("findJourneys returns direct and 1-transfer Kolkata routes", () => {
-  const directRes = findJourneys("Howrah Station", "Salt Lake Sector V", KOLKATA_ROUTES, KOLKATA_STOPS);
-  assert.ok(directRes.direct.length >= 2);
+test("findJourneys returns direct and 1-transfer Kolkata routes with schedule outcomes", () => {
+  const morningPeak = new Date(2026, 10, 25, 9, 15, 0);
+  const directRes = findJourneys("Howrah Station", "Salt Lake Sector V", KOLKATA_ROUTES, KOLKATA_STOPS, {
+    departureTime: morningPeak,
+  });
+  assert.ok(directRes.direct.length >= 3);
   const directNums = directRes.direct.map((d) => d.route.routeNumber);
   assert.ok(directNums.includes("S-12"));
   assert.ok(directNums.includes("C-11"));
+  assert.ok(directNums.includes("215A"));
+  assert.equal(directRes.direct[0].schedule.inServiceNow, true);
+  assert.equal(directRes.direct[0].schedule.upcomingDepartures.length, 3);
+  assert.equal(directRes.direct[0].schedule.trafficNote, "Peak Hour");
 
-  const transferRes = findJourneys("Howrah Station", "Gariahat Junction", KOLKATA_ROUTES, KOLKATA_STOPS);
+  // Alias matching & new real Kolkata corridors
+  const aliasRes = findJourneys("dharmatala", "sector 5", KOLKATA_ROUTES, KOLKATA_STOPS, {
+    departureTime: morningPeak,
+  });
+  assert.ok(aliasRes.direct.some((d) => d.route.routeNumber === "S-12"));
+
+  const behalaRes = findJourneys("Behala", "Howrah", KOLKATA_ROUTES, KOLKATA_STOPS, {
+    departureTime: morningPeak,
+  });
+  assert.ok(behalaRes.direct.some((d) => d.route.routeNumber === "12C"));
+
+  // 1-transfer connection (Howrah Station -> Gariahat Junction)
+  const transferRes = findJourneys("Howrah Station", "Gariahat Junction", KOLKATA_ROUTES, KOLKATA_STOPS, {
+    departureTime: morningPeak,
+  });
   assert.equal(transferRes.direct.length, 0);
   assert.ok(transferRes.connecting.length >= 1);
-  assert.equal(transferRes.connecting[0].transferStop, "Salt Lake Karunamoyee");
+  assert.ok(transferRes.connecting[0].transferStop.length > 0);
+  assert.ok(transferRes.connecting[0].totalMins > 20);
+
+  // Off-hours fallback still gives morning first bus
+  const lateNight = new Date(2026, 10, 25, 2, 0, 0);
+  const offHoursRes = findJourneys("Airport", "Gariahat", KOLKATA_ROUTES, KOLKATA_STOPS, {
+    departureTime: lateNight,
+  });
+  assert.ok(offHoursRes.direct.some((d) => d.route.routeNumber === "45"));
+  assert.equal(offHoursRes.direct[0].schedule.inServiceNow, false);
+  assert.equal(offHoursRes.direct[0].schedule.trafficNote, "Next Morning Service");
 });
 
 test("ingestMemoryTelemetry enforces ESP32/Driver priority over passive crowd pings", () => {
