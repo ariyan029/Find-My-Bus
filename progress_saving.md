@@ -11,7 +11,7 @@
 - [x] Rebrand entire platform identity to **PRAVAH** with tagline **"Real-Time Kolkata Transit Network"**
 - [x] Create Docker Compose setup for PostgreSQL 16 with PostGIS extension (`docker-compose.yml`)
 - [x] Create database initialization SQL script (`docker/init.sql`) with real Kolkata stops, routes, and active buses
-- [x] Set up Prisma schema (`frontend/prisma/schema.prisma`) with PostgreSQL adapter and connection pooling
+- [x] Set up Prisma schema (`app/prisma/schema.prisma`) with PostgreSQL adapter and connection pooling
 - [x] Implement backend API routes (`/api/buses/live`, `/api/routes`, `/api/stops`, `/api/crowdsource/ping`) with graceful offline fallback
 - [x] Verify production build (`pnpm run build`) with zero TypeScript or compilation errors
 

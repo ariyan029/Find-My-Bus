@@ -40,17 +40,17 @@
 
 ```bash
 git clone https://github.com/ariyan029/Find-My-Bus.git
-cd Find-My-Bus/frontend
+cd Find-My-Bus/app
 pnpm install
 pnpm exec prisma generate
 ```
 
 ### 2. Set up environment variables
 
-Docker Compose reads `.env` from the repo root, and Next.js reads it from `frontend/`, so copy the example to both places:
+Docker Compose reads `.env` from the repo root, and Next.js reads it from `app/`, so copy the example to both places:
 
 ```bash
-cp .env.example .env && cp .env.example frontend/.env
+cp .env.example .env && cp .env.example app/.env
 ```
 
 (Run that from the repo root.) The defaults work for local development. Never commit `.env`; it's in `.gitignore`.
@@ -68,7 +68,7 @@ This starts PostgreSQL with PostGIS on port `5432`. On first start it creates th
 ### 4. Run the app
 
 ```bash
-cd frontend
+cd app
 pnpm dev
 ```
 
@@ -83,7 +83,8 @@ Find-My-Bus/
 ├── docker-compose.yml          # PostgreSQL + PostGIS
 ├── docker/init.sql             # Schema + Kolkata seed data
 ├── .env.example                # Environment variable template
-└── frontend/                   # Next.js app
+├── iot/                        # ESP32 + NEO-6M Arduino firmware
+└── app/                        # Full-stack Next.js app (UI + API + Prisma)
     ├── prisma/schema.prisma    # Prisma models (mirror init.sql)
     └── src/
         ├── app/
@@ -110,10 +111,14 @@ All endpoints return JSON.
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/api/buses/live?route=S-12` | Live buses, optionally filtered by route number |
-| `GET` | `/api/routes?q=howrah` | Routes, optionally searched by number, name or endpoint |
-| `GET` | `/api/stops` | Bus stops |
+| `GET` | `/api/buses/live?route=S-12` | Live buses with computed `nextStop`, `etaNextStopMins`, and `progressPct` |
+| `GET` | `/api/routes?q=howrah` | Routes with ordered `stopPoints` from `route_stops` |
+| `GET` | `/api/stops` | Bus stops with connecting routes |
+| `POST` | `/api/iot/telemetry` | Receive GPS telemetry from an onboard ESP32 + NEO-6M IoT tracker |
+| `GET` | `/api/iot/telemetry` | List registered ESP32 devices & recent telemetry stream |
+| `POST` | `/api/driver/broadcast` | Receive live GPS + occupancy/status from a driver's mobile device |
 | `POST` | `/api/crowdsource/ping` | Send a rider's GPS position for a bus |
+| `GET` | `/api/health` | Check PostgreSQL connectivity, storage mode, and active device counts |
 
 <details>
 <summary><b>POST /api/crowdsource/ping</b>: request and responses</summary>
@@ -144,7 +149,7 @@ Only `busNumber`, `latitude` and `longitude` are required.
 
 ## 🛠️ Scripts
 
-Run these inside `frontend/`:
+Run these inside `app/`:
 
 | Command | What it does |
 |---|---|
@@ -157,15 +162,16 @@ Run these inside `frontend/`:
 ## 🗺️ Roadmap
 
 - [x] Live map with buses and stops
-- [x] Real GPS sharing from riders
-- [x] Pages powered by the API with a DB fallback
-- [ ] Seed `route_stops` and calculate the next stop and ETA from bus positions
-- [ ] From → To search across stops
-- [ ] Real saved routes and stops (stored on the device)
-- [ ] Bengali / English language toggle
-- [ ] Prisma migrations and seed script (replacing `init.sql`)
-- [ ] Offline support (service worker) and proper app icons
-- [ ] Tests and CI (lint, type-check, build)
+- [x] Real GPS sharing from riders & Driver Mobile Broadcast console (`/driver`)
+- [x] ESP32 + NEO-6M IoT hardware ingestion endpoint (`/api/iot/telemetry`) & Arduino sketch (`iot/`)
+- [x] Pages powered by the API with live in-memory + DB fallback
+- [x] Seed `route_stops` and calculate the next stop, progress, and ETA from bus positions
+- [x] Direct & 1-transfer From → To search across stops
+- [x] Real saved routes, stops, and recent searches (stored on the device)
+- [x] Offline support (service worker + localStorage route/stop cache)
+- [x] Automated unit tests (`pnpm test`)
+- [ ] Bengali / English UI language toggle
+- [ ] Prisma migrations (replacing `init.sql`)
 
 More detail is in [`implementation_plan.md`](implementation_plan.md), [`system_architecture.md`](system_architecture.md) (long-term vision) and [`progress_saving.md`](progress_saving.md).
 
