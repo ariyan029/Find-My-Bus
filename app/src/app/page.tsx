@@ -43,6 +43,15 @@ const BusMap = dynamic(() => import("@/components/BusMap"), {
   ),
 });
 
+function formatUpdatedAgo(secs: number): string {
+  if (secs < 60) return `${secs}s ago`;
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  const remMins = mins % 60;
+  return remMins > 0 ? `${hrs}h ${remMins}m ago` : `${hrs}h ago`;
+}
+
 function LiveRadarContent({
   routeParam,
   busParam,
@@ -346,7 +355,7 @@ function LiveRadarContent({
                     <Radio className="h-3 w-3 text-[#CC5500]" /> Updated
                   </div>
                   <p className="text-xs font-bold text-[#4E342E] mt-0.5 font-mono tabular-nums">
-                    {currentBus.lastUpdatedSecsAgo}s ago
+                    {formatUpdatedAgo(currentBus.lastUpdatedSecsAgo)}
                   </p>
                 </div>
               </div>

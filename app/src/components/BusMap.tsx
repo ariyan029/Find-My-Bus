@@ -299,11 +299,11 @@ const BusMarker = React.memo(function BusMarker({
 
 const TILE_PROVIDERS = [
   {
-    name: "CARTO Voyager",
-    url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-    subdomains: "abcd",
+    name: "OpenStreetMap Street",
+    url: "https://tile.openstreetmap.de/{z}/{x}/{y}.png",
+    subdomains: "",
     attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   },
   {
     name: "Esri Street",
@@ -467,6 +467,7 @@ export default function BusMap({
           attribution={provider.attribution}
           url={provider.url}
           subdomains={provider.subdomains}
+          maxNativeZoom={18}
           maxZoom={19}
           eventHandlers={{
             tileerror: () => {
