@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getIoTDevices, ingestTelemetry } from "@/lib/db";
+import { getIoTDevices, getPrisma, ingestTelemetry } from "@/lib/db";
 import { BUS_STATUSES, OCCUPANCIES } from "@/lib/enums";
 import { rateLimit } from "@/lib/rateLimit";
 
@@ -86,14 +86,37 @@ export async function POST(request: NextRequest) {
   }
 
   const d = parsed.data;
-  const expectedKey = process.env.IOT_API_KEY;
-  if (expectedKey) {
-    const provided = request.headers.get("x-device-key") || d.apiKey;
-    if (provided !== expectedKey) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized IoT device key" },
-        { status: 401 }
-      );
+  const providedKey = request.headers.get("x-device-key") || d.apiKey;
+  const expectedGlobalKey = process.env.IOT_API_KEY;
+  if (expectedGlobalKey && providedKey !== expectedGlobalKey) {
+    return NextResponse.json(
+      { success: false, error: "Unauthorized IoT device key" },
+      { status: 401 }
+    );
+  }
+
+  // Also enforce per-device API key if configured on the IoTDevice row in PostgreSQL.
+  const db = getPrisma();
+  if (db) {
+    try {
+      const existingDevice = await db.ioTDevice.findUnique({
+        where: { id: d.deviceId },
+        select: { apiKey: true, isActive: true },
+      });
+      if (existingDevice && !existingDevice.isActive) {
+        return NextResponse.json(
+          { success: false, error: "IoT device is deactivated" },
+          { status: 403 }
+        );
+      }
+      if (existingDevice?.apiKey && providedKey !== existingDevice.apiKey) {
+        return NextResponse.json(
+          { success: false, error: "Invalid per-device IoT key" },
+          { status: 401 }
+        );
+      }
+    } catch {
+      // Postgres offline — continue with memory fallback
     }
   }
 

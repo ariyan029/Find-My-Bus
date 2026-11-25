@@ -70,23 +70,43 @@ export default function DriverIoTPage() {
     [buses, selectedBusId]
   );
 
+  const simStepRef = React.useRef<number>(0);
+  const simContextRef = React.useRef({
+    selectedBus,
+    routes,
+    driverName,
+    occupancyStatus,
+    busStatus,
+  });
+  React.useEffect(() => {
+    simContextRef.current = {
+      selectedBus,
+      routes,
+      driverName,
+      occupancyStatus,
+      busStatus,
+    };
+  });
+
   // Indoor/desktop route simulation loop using real /api/driver/broadcast calls.
   React.useEffect(() => {
     if (!simulating) return;
-    const route =
-      routes.find(
-        (r) =>
-          r.id === selectedBus.routeId ||
-          r.routeNumber.toLowerCase() === selectedBus.busNumber.toLowerCase()
-      ) || routes[0];
-    const pts = route?.stopPoints;
-    if (!pts || pts.length < 2) return;
-
-    let step = 0;
-    const totalSubSteps = (pts.length - 1) * 4;
+    simStepRef.current = 0;
 
     const tick = async () => {
-      const progress = (step % totalSubSteps) / totalSubSteps;
+      const ctx = simContextRef.current;
+      const bus = ctx.selectedBus;
+      const route =
+        ctx.routes.find(
+          (r) =>
+            r.id === bus.routeId ||
+            r.routeNumber.toLowerCase() === bus.busNumber.toLowerCase()
+        ) || ctx.routes[0];
+      const pts = route?.stopPoints;
+      if (!pts || pts.length < 2) return;
+
+      const totalSubSteps = (pts.length - 1) * 4;
+      const progress = (simStepRef.current % totalSubSteps) / totalSubSteps;
       const scaled = progress * (pts.length - 1);
       const segIdx = Math.min(pts.length - 2, Math.floor(scaled));
       const t = scaled - segIdx;
@@ -104,34 +124,53 @@ export default function DriverIoTPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            busId: selectedBus.id,
-            busNumber: selectedBus.busNumber,
-            regNumber: selectedBus.regNumber,
-            driverId: `sim-${selectedBus.id}`,
-            driverName,
+            busId: bus.id,
+            busNumber: bus.busNumber,
+            regNumber: bus.regNumber,
+            driverId: `sim-${bus.id}`,
+            driverName: ctx.driverName,
             latitude: Number(lat.toFixed(6)),
             longitude: Number(lng.toFixed(6)),
             accuracyMeters: 8,
             speedKmh: 32,
             heading,
-            occupancyStatus,
-            status: busStatus,
+            occupancyStatus: ctx.occupancyStatus,
+            status: ctx.busStatus,
           }),
         });
         setSimStepCount((c) => c + 1);
       } catch {
         // Ignore transient network error
       }
-      step += 1;
+      simStepRef.current += 1;
     };
 
     void tick();
     const timer = setInterval(() => void tick(), 3000);
     return () => clearInterval(timer);
-  }, [simulating, selectedBus, routes, driverName, occupancyStatus, busStatus]);
+  }, [simulating, selectedBusId]);
 
   const sendTestEspPing = async (e: React.FormEvent) => {
     e.preventDefault();
+    const latNum = Number(testLat);
+    const lngNum = Number(testLng);
+    const speedNum = Number(testSpeed);
+    if (
+      !testDeviceId.trim() ||
+      !testBusNumber.trim() ||
+      !Number.isFinite(latNum) ||
+      !Number.isFinite(lngNum) ||
+      latNum < -90 ||
+      latNum > 90 ||
+      lngNum < -180 ||
+      lngNum > 180 ||
+      !Number.isFinite(speedNum) ||
+      speedNum < 0
+    ) {
+      setTestStatusMsg("Enter valid Device ID, Bus Number, coordinates, and speed.");
+      return;
+    }
+
     setTestStatusMsg("Sending ESP32 telemetry...");
     try {
       const res = await fetch("/api/iot/telemetry", {
@@ -140,9 +179,9 @@ export default function DriverIoTPage() {
         body: JSON.stringify({
           deviceId: testDeviceId.trim(),
           busNumber: testBusNumber.trim(),
-          lat: Number(testLat),
-          lng: Number(testLng),
-          speed: Number(testSpeed),
+          lat: latNum,
+          lng: lngNum,
+          speed: speedNum,
           course: 88,
           sats: 9,
           batt: 91,

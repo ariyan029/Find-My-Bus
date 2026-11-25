@@ -28,6 +28,7 @@ import { KOLKATA_STOPS, KOLKATA_ROUTES, ACTIVE_LIVE_BUSES } from "@/lib/data";
 import { useLiveBuses, useRoutes, useStops } from "@/lib/api";
 import { useLocationSharing } from "@/lib/useLocationSharing";
 import { useSavedTransit } from "@/lib/useSavedTransit";
+import { haversineKm } from "@/lib/transit";
 import { BUS_STATUS_LABELS, OCCUPANCY_LABELS, TELEMETRY_SOURCE_LABELS } from "@/lib/enums";
 
 const BusMap = dynamic(() => import("@/components/BusMap"), {
@@ -45,13 +46,22 @@ const BusMap = dynamic(() => import("@/components/BusMap"), {
 function LiveRadarContent({
   routeParam,
   busParam,
+  fromParam,
+  toParam,
 }: {
   routeParam: string;
   busParam: string;
+  fromParam: string;
+  toParam: string;
 }) {
   const [selectedCategory, setSelectedCategory] = React.useState<string>("ALL");
   const [searchQuery, setSearchQuery] = React.useState<string>(routeParam);
   const [selectedBusId, setSelectedBusId] = React.useState<string>(busParam || ACTIVE_LIVE_BUSES[0].id);
+  const [boardedRouteNumber, setBoardedRouteNumber] = React.useState<string>(routeParam);
+  const [boardedToStop, setBoardedToStop] = React.useState<string>(toParam);
+  const [fitRouteTrigger, setFitRouteTrigger] = React.useState<number>(() =>
+    routeParam || toParam ? 1 : 0
+  );
 
   const { data: apiBuses, storageMode } = useLiveBuses(8000);
   const { data: apiRoutes } = useRoutes();
@@ -98,15 +108,82 @@ function LiveRadarContent({
 
   const currentBus = React.useMemo(() => {
     return (
-      liveBuses.find((b) => b.id === selectedBusId) ||
+      filteredBuses.find((b) => b.id === selectedBusId) ||
       filteredBuses[0] ||
+      liveBuses.find((b) => b.id === selectedBusId) ||
       liveBuses[0] ||
       ACTIVE_LIVE_BUSES[0]
     );
   }, [liveBuses, filteredBuses, selectedBusId]);
 
-  const isSharingCurrentBus = sharing.status === "sharing" && sharing.bus?.id === currentBus?.id;
-  const isSharingOtherBus = sharing.status === "sharing" && !isSharingCurrentBus;
+  // Active route shown on map: explicit passenger-selected route, or the selected bus's route.
+  const activeRoute = React.useMemo(() => {
+    const targetRouteNum = boardedRouteNumber || currentBus?.busNumber;
+    if (targetRouteNum) {
+      const match = routes.find(
+        (r) => r.routeNumber.toLowerCase() === targetRouteNum.toLowerCase()
+      );
+      if (match) return match;
+    }
+    return routes.find((r) => r.id === currentBus?.routeId) || routes[0] || null;
+  }, [boardedRouteNumber, currentBus, routes]);
+
+  // Nearest stop on the active route to the passenger's live GPS (when GPS is on).
+  const nearestGpsStop = React.useMemo(() => {
+    if (!sharing.lastCoords || !activeRoute?.stopPoints?.length) return null;
+    let bestName: string | null = null;
+    let bestDist = Infinity;
+    for (const pt of activeRoute.stopPoints) {
+      const d = haversineKm(sharing.lastCoords.lat, sharing.lastCoords.lng, pt.lat, pt.lng);
+      if (d < bestDist) {
+        bestDist = d;
+        bestName = pt.name;
+      }
+    }
+    return bestName;
+  }, [sharing.lastCoords, activeRoute]);
+
+  const effectiveFromStop = fromParam || nearestGpsStop || null;
+  const effectiveToStop = boardedToStop || activeRoute?.destination || null;
+
+  const targetBusForSharing = React.useMemo(() => {
+    if (!activeRoute) return currentBus;
+    const liveOnRoute = liveBuses.find(
+      (b) => b.busNumber.toLowerCase() === activeRoute.routeNumber.toLowerCase()
+    );
+    if (liveOnRoute) return liveOnRoute;
+    const firstPt = activeRoute.stopPoints?.[0];
+    return {
+      ...currentBus,
+      id: `bus-${activeRoute.routeNumber.toLowerCase().replace(/[^a-z0-9]+/g, "")}-01`,
+      busNumber: activeRoute.routeNumber,
+      routeId: activeRoute.id,
+      regNumber: "WB-BOARDED",
+      currentLat: firstPt?.lat ?? currentBus.currentLat,
+      currentLng: firstPt?.lng ?? currentBus.currentLng,
+      originStop: activeRoute.source,
+      destination: activeRoute.destination,
+    };
+  }, [activeRoute, currentBus, liveBuses]);
+
+  const passengerCoords = React.useMemo(
+    () =>
+      sharing.lastCoords
+        ? {
+            lat: sharing.lastCoords.lat,
+            lng: sharing.lastCoords.lng,
+            accuracyMeters: sharing.accuracyMeters,
+          }
+        : null,
+    [sharing.lastCoords, sharing.accuracyMeters]
+  );
+
+  const isSharingCurrentBus =
+    (sharing.status === "sharing" || sharing.status === "locating") &&
+    sharing.bus?.busNumber.toLowerCase() === (activeRoute?.routeNumber || currentBus?.busNumber).toLowerCase();
+  const isSharingOtherBus =
+    (sharing.status === "sharing" || sharing.status === "locating") &&
+    !isSharingCurrentBus;
   const mapBuses = filteredBuses.length > 0 ? filteredBuses : liveBuses;
 
   return (
@@ -303,41 +380,93 @@ function LiveRadarContent({
 
               <Separator className="bg-[#4E342E]/10" />
 
-              {/* Real GPS Crowdsourcing Trigger */}
-              <div className="flex items-center justify-between gap-3 pt-1">
-                <div className="text-xs text-[#7E655D] leading-tight">
-                  <span className="text-[#4E342E] font-bold block">On board this bus?</span>
-                  <span className="text-[11px] text-[#7E655D]">
-                    {isSharingOtherBus
-                      ? `Sharing for ${sharing.bus?.busNumber} (${sharing.bus?.regNumber})`
-                      : "Share rider GPS, or use Driver/ESP32 Console"}
-                  </span>
+              {/* Real GPS Crowdsourcing + Passenger Route Path Trigger */}
+              <div className="space-y-3 pt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-[#4E342E] block">
+                      Route You Boarded
+                    </label>
+                    <select
+                      value={activeRoute?.routeNumber || currentBus.busNumber}
+                      onChange={(e) => {
+                        const nextRoute = e.target.value;
+                        setBoardedRouteNumber(nextRoute);
+                        setBoardedToStop("");
+                        setSearchQuery(nextRoute);
+                        const matchingBus = liveBuses.find(
+                          (b) => b.busNumber.toLowerCase() === nextRoute.toLowerCase()
+                        );
+                        if (matchingBus) setSelectedBusId(matchingBus.id);
+                        setFitRouteTrigger((n) => n + 1);
+                      }}
+                      className="w-full h-9 px-2.5 rounded-xl bg-white/80 border border-[#4E342E]/15 text-xs font-bold text-[#4E342E] focus:outline-none focus:ring-2 focus:ring-[#CC5500]"
+                    >
+                      {routes.map((r) => (
+                        <option key={r.id} value={r.routeNumber}>
+                          {r.routeNumber} · {r.source} ⇄ {r.destination}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-[#4E342E] block">
+                      Where Are You Going?
+                    </label>
+                    <select
+                      value={effectiveToStop || ""}
+                      onChange={(e) => {
+                        setBoardedToStop(e.target.value);
+                        setFitRouteTrigger((n) => n + 1);
+                      }}
+                      className="w-full h-9 px-2.5 rounded-xl bg-white/80 border border-[#4E342E]/15 text-xs font-bold text-[#4E342E] focus:outline-none focus:ring-2 focus:ring-[#CC5500]"
+                    >
+                      {(activeRoute?.stopPoints ?? []).map((sp) => (
+                        <option key={`${sp.stopId}-${sp.sequence}`} value={sp.name}>
+                          {sp.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
-                <Button
-                  size="sm"
-                  variant={isSharingCurrentBus ? "destructive" : "default"}
-                  onClick={() => {
-                    if (isSharingCurrentBus) {
-                      sharing.stop();
-                    } else {
-                      sharing.start(currentBus);
-                    }
-                  }}
-                  disabled={isSharingOtherBus || sharing.status === "locating"}
-                  className={`gap-1.5 text-xs font-bold shrink-0 rounded-xl ${
-                    !isSharingCurrentBus
-                      ? "bg-[#CC5500] hover:bg-[#B34700] text-white border border-white/30 shadow-[0_6px_20px_rgba(204,85,0,0.45),inset_0_1px_1px_rgba(255,255,255,0.4)]"
-                      : ""
-                  }`}
-                >
-                  <Radio className={`h-3.5 w-3.5 ${sharing.status === "locating" ? "animate-spin" : ""}`} />
-                  {sharing.status === "locating"
-                    ? "Acquiring..."
-                    : isSharingCurrentBus
-                      ? `Stop (${sharing.sentCount})`
-                      : "Share Rider GPS"}
-                </Button>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-xs text-[#7E655D] leading-tight">
+                    <span className="text-[#4E342E] font-bold block">On board this bus?</span>
+                    <span className="text-[11px] text-[#7E655D]">
+                      {isSharingOtherBus
+                        ? `Sharing for ${sharing.bus?.busNumber} (${sharing.bus?.regNumber})`
+                        : "Turn on GPS to track your live route to destination"}
+                    </span>
+                  </div>
+
+                  <Button
+                    size="sm"
+                    variant={isSharingCurrentBus ? "destructive" : "default"}
+                    onClick={() => {
+                      if (isSharingCurrentBus) {
+                        sharing.stop();
+                      } else {
+                        setFitRouteTrigger((n) => n + 1);
+                        sharing.start(targetBusForSharing);
+                      }
+                    }}
+                    disabled={isSharingOtherBus}
+                    className={`gap-1.5 text-xs font-bold shrink-0 rounded-xl ${
+                      !isSharingCurrentBus
+                        ? "bg-[#CC5500] hover:bg-[#B34700] text-white border border-white/30 shadow-[0_6px_20px_rgba(204,85,0,0.45),inset_0_1px_1px_rgba(255,255,255,0.4)]"
+                        : ""
+                    }`}
+                  >
+                    <Radio className={`h-3.5 w-3.5 ${sharing.status === "locating" ? "animate-spin" : ""}`} />
+                    {sharing.status === "locating"
+                      ? "Acquiring GPS..."
+                      : isSharingCurrentBus
+                        ? `Stop GPS (${sharing.sentCount})`
+                        : "Turn On GPS & Show Route"}
+                  </Button>
+                </div>
               </div>
 
               <div className="flex items-center justify-between text-[11px] bg-[#4E342E]/6 px-3 py-2 rounded-xl border border-[#4E342E]/10">
@@ -350,12 +479,14 @@ function LiveRadarContent({
               </div>
 
               {sharing.status === "sharing" && isSharingCurrentBus && (
-                <div className="p-2.5 rounded-xl bg-[#CC5500]/14 border border-[#CC5500]/35 text-[#4E342E] text-xs flex items-center justify-between font-medium shadow-xs">
+                <div className="p-2.5 rounded-xl bg-blue-600/12 border border-blue-600/30 text-[#4E342E] text-xs flex items-center justify-between font-medium shadow-xs">
                   <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 shrink-0 text-[#CC5500]" />
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-blue-600" />
                     <span>
-                      Broadcasting live GPS (sent {sharing.sentCount}
-                      {sharing.accuracyMeters != null ? ` · ±${Math.round(sharing.accuracyMeters)}m` : ""})
+                      GPS active on <strong>{activeRoute?.routeNumber}</strong>
+                      {effectiveFromStop ? ` from ${effectiveFromStop}` : ""}
+                      {effectiveToStop ? ` → ${effectiveToStop}` : ""}
+                      {sharing.accuracyMeters != null ? ` (±${Math.round(sharing.accuracyMeters)}m)` : ""}
                     </span>
                   </div>
                 </div>
@@ -538,7 +669,15 @@ function LiveRadarContent({
                 buses={mapBuses}
                 stops={stops}
                 selectedBusId={currentBus.id}
-                onSelectBus={(busId) => setSelectedBusId(busId)}
+                onSelectBus={(busId) => {
+                  setSelectedBusId(busId);
+                  setBoardedRouteNumber("");
+                }}
+                activeRoute={activeRoute}
+                boardedFromStop={effectiveFromStop}
+                boardedToStop={effectiveToStop}
+                passengerCoords={passengerCoords}
+                fitRouteTrigger={fitRouteTrigger}
               />
             </div>
           </div>
@@ -573,11 +712,15 @@ function HomePageInner() {
   const searchParams = useSearchParams();
   const routeParam = searchParams.get("route") ?? "";
   const busParam = searchParams.get("bus") ?? "";
+  const fromParam = searchParams.get("from") ?? "";
+  const toParam = searchParams.get("to") ?? "";
   return (
     <LiveRadarContent
-      key={`${routeParam}:${busParam}`}
+      key={`${routeParam}:${busParam}:${fromParam}:${toParam}`}
       routeParam={routeParam}
       busParam={busParam}
+      fromParam={fromParam}
+      toParam={toParam}
     />
   );
 }

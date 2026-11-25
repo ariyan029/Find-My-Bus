@@ -54,7 +54,8 @@ function createInitialState(): LiveMemoryState {
       b.speedKmh,
       route?.stopPoints,
       b.originStop,
-      b.destination
+      b.destination,
+      b.heading
     );
     buses.set(b.id, {
       bus: { ...b, ...progress },
@@ -205,13 +206,15 @@ export function ingestMemoryTelemetry(input: MemoryIngestInput): MemoryIngestRes
         r.routeNumber.toLowerCase() === record!.bus.busNumber.toLowerCase()
     );
     const nextSpeed = input.speedKmh ?? record.bus.speedKmh;
+    const nextHeading = input.heading ?? record.bus.heading;
     const progress = computeBusProgress(
       input.latitude,
       input.longitude,
       nextSpeed,
       route?.stopPoints,
       record.bus.originStop,
-      record.bus.destination
+      record.bus.destination,
+      nextHeading
     );
 
     record.bus = {

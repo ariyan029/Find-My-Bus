@@ -113,6 +113,11 @@ export function useLocationSharing(options: LocationSharingOptions = {}) {
 
   const requestWakeLock = React.useCallback(async () => {
     try {
+      const rawPrefs = localStorage.getItem("pravah.savedTransit.v1");
+      if (rawPrefs) {
+        const parsed = JSON.parse(rawPrefs) as { preferences?: { bgTracking?: boolean } };
+        if (parsed.preferences?.bgTracking === false) return;
+      }
       if ("wakeLock" in navigator && document.visibilityState === "visible") {
         wakeLockRef.current = await navigator.wakeLock.request("screen");
       }

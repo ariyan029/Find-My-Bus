@@ -376,8 +376,11 @@ function SearchPageContent({
                     key={stopName}
                     type="button"
                     onClick={() => {
-                      if (!sourceStop) setSourceStop(stopName);
-                      else setDestStop(stopName);
+                      if (!sourceStop.trim()) {
+                        setSourceStop(stopName);
+                      } else if (sourceStop.trim().toLowerCase() !== stopName.toLowerCase()) {
+                        setDestStop(stopName);
+                      }
                     }}
                     className="px-2.5 py-1 rounded-lg bg-white/65 hover:bg-[#CC5500] hover:text-white border border-white/85 text-[10px] font-bold text-[#4E342E] transition-all cursor-pointer shadow-xs"
                   >
@@ -483,7 +486,7 @@ function SearchPageContent({
                         )}
                       </div>
                       <Link
-                        href={`/?route=${encodeURIComponent(leg.route.routeNumber)}`}
+                        href={`/?route=${encodeURIComponent(leg.route.routeNumber)}&from=${encodeURIComponent(leg.fromStopName)}&to=${encodeURIComponent(leg.toStopName)}`}
                         onClick={(e) => e.stopPropagation()}
                         className="shrink-0"
                       >
@@ -761,7 +764,10 @@ function SearchPageContent({
                   </div>
                 </div>
 
-                <Link href={`/?route=${encodeURIComponent(selectedRoute.routeNumber)}`} className="block">
+                  <Link
+                    href={`/?route=${encodeURIComponent(selectedRoute.routeNumber)}&from=${encodeURIComponent(selectedRoute.source)}&to=${encodeURIComponent(selectedRoute.destination)}`}
+                    className="block"
+                  >
                   <Button className="w-full bg-[#CC5500] hover:bg-[#B34700] text-white text-xs font-bold h-10.5 border border-white/35 shadow-[0_6px_20px_rgba(204,85,0,0.45),inset_0_1px_1px_rgba(255,255,255,0.4)] rounded-xl gap-2">
                     <Bus className="h-4 w-4" />
                     Track Active Buses On {selectedRoute.routeNumber}

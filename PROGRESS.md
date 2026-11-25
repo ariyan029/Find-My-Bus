@@ -62,12 +62,15 @@
 - **Formal Prisma Migrations:** Currently relies on `docker/init.sql` instead of versioned `prisma migrate` migrations and a TypeScript seed script.
 - **Multi-Instance Scaling:** `liveStore.ts` and `rateLimit.ts` are process-local in-memory structures; multi-instance or serverless deployments should back rate limiting and ephemeral live state with Redis.
 
-### Bugs & Functional Limitations to Address
-- **Bidirectional Route Progress Bug (`computeBusProgress`):** `computeBusProgress()` projects coordinates onto the forward stop sequence (`origin -> destination`). A bus traveling on its **return trip** (`destination -> origin`) will currently still report the forward `nextStop` and increasing/inverted `progressPct` unless trip direction (`forward` vs `return`) is tracked using heading or consecutive GPS fixes.
-- **Map Auto-Follow Behavior (`BusMap.tsx`):** `FollowSelected` calls `map.flyTo(...)` whenever the selected bus's coordinates update (every 8s poll), which can snap the viewport back if a user intentionally pans/zooms elsewhere while keeping a bus selected. Add an explicit "Follow / Recenter" toggle.
-- **Per-Device IoT Authentication:** `POST /api/iot/telemetry` currently checks a single global `IOT_API_KEY` env var (optional) rather than per-device keys stored in `iot_devices.api_key`, and there is no admin UI to register/revoke ESP32 devices or assign them to buses dynamically.
-- **Straight-Line Route Segments:** Corridor progress and ETAs use straight-line Haversine distance between stops rather than road-snapped OSRM/polyline geometry.
-- **Polling Instead of Real-Time Push:** Clients poll `/api/buses/live` every 8 seconds; upgrading to Server-Sent Events (SSE) or WebSockets would give smoother real-time motion.
+### Bugs & Functional Limitations Fixed / Remaining
+- **Fixed — Bidirectional Route Progress (`computeBusProgress`):** Heading-aware bearing comparison now detects return trips (`destination -> origin`) and flips `originStop`, `destination`, `nextStop`, and `progressPct` automatically.
+- **Fixed — Map Auto-Follow Snap-Back (`BusMap.tsx`):** Auto-follow now pauses automatically when the user drags/pans the map and includes a floating **Following / Recenter** toggle button.
+- **Fixed — Driver Route Simulator Reset (`driver/page.tsx`):** Simulator step state now persists across 8-second `useLiveBuses` polls instead of resetting to stop 0, and test ping inputs validate numeric bounds.
+- **Fixed — Home Filtered Bus Selection (`page.tsx`):** Hero card now resolves from `filteredBuses` first so search/category filtering never keeps a hidden bus selected.
+- **Fixed — Per-Device IoT Key Validation & Unique Contributor Counts:** `POST /api/iot/telemetry` checks `iot_devices.api_key` when set in Postgres, and `db.ts` counts unique active contributors instead of raw ping rows.
+- **Fixed — Preferences Wiring (`useLocationSharing.ts`, `api.ts`):** `bgTracking` (Wake Lock) and `autoOffline` (`localStorage` cache) preferences in `/profile` are now respected at runtime.
+- **Remaining — Straight-Line Route Segments:** Corridor progress and ETAs use straight-line Haversine distance between stops rather than road-snapped OSRM/polyline geometry.
+- **Remaining — Polling Instead of Real-Time Push:** Clients poll `/api/buses/live` every 8 seconds; upgrading to Server-Sent Events (SSE) or WebSockets would give smoother real-time motion.
 
 ### Polish & Nice-to-Have Roadmap Items
 - **SIM800L / 4G Cellular Firmware Variant:** Add a `TinyGSM` sketch alongside the Wi-Fi ESP32 sketch for buses that do not carry a Wi-Fi hotspot.

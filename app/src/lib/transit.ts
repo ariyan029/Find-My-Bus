@@ -17,6 +17,17 @@ export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: numb
   return 2 * EARTH_RADIUS_KM * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+function segmentBearingDeg(a: RouteStopPoint, b: RouteStopPoint): number {
+  const cosLat = Math.cos(toRad((a.lat + b.lat) / 2));
+  const dLng = (b.lng - a.lng) * cosLat;
+  const dLat = b.lat - a.lat;
+  return ((Math.atan2(dLng, dLat) * 180) / Math.PI + 360) % 360;
+}
+
+function angularDifferenceDeg(a: number, b: number): number {
+  return Math.abs((((a - b) % 360) + 540) % 360 - 180);
+}
+
 export interface BusProgressResult {
   originStop: string;
   nextStop: string;
@@ -24,11 +35,13 @@ export interface BusProgressResult {
   distanceToNextStopKm: number;
   etaNextStopMins: number;
   progressPct: number;
+  direction?: "forward" | "return";
 }
 
 /**
  * Project a bus's live GPS position onto its ordered corridor stops to derive
  * the next upcoming stop, ETA, distance, and route completion percentage.
+ * Automatically detects return-direction trips when heading opposes the forward corridor.
  */
 export function computeBusProgress(
   lat: number,
@@ -36,7 +49,8 @@ export function computeBusProgress(
   speedKmh: number,
   stopPoints: RouteStopPoint[] | undefined,
   fallbackOrigin: string,
-  fallbackDestination: string
+  fallbackDestination: string,
+  heading?: number | null
 ): BusProgressResult {
   if (!stopPoints || stopPoints.length < 2) {
     return {
@@ -46,12 +60,11 @@ export function computeBusProgress(
       distanceToNextStopKm: 1.5,
       etaNextStopMins: 5,
       progressPct: 50,
+      direction: "forward",
     };
   }
 
   const ordered = [...stopPoints].sort((a, b) => a.sequence - b.sequence);
-  const originStop = ordered[0].name;
-  const destination = ordered[ordered.length - 1].name;
 
   // Find the closest point along any consecutive stop-to-stop segment.
   let bestSegIdx = 0;
@@ -84,8 +97,26 @@ export function computeBusProgress(
     }
   }
 
-  const nextIdx =
-    bestT > 0.92 && bestSegIdx + 2 < ordered.length ? bestSegIdx + 2 : bestSegIdx + 1;
+  // Detect return trips when heading points significantly opposite to the segment bearing.
+  let isReturn = false;
+  if (heading != null && Number.isFinite(heading) && (speedKmh >= 3 || heading !== 0)) {
+    const segBearing = segmentBearingDeg(ordered[bestSegIdx], ordered[bestSegIdx + 1]);
+    if (angularDifferenceDeg(heading, segBearing) > 105) {
+      isReturn = true;
+    }
+  }
+
+  const originStop = isReturn ? ordered[ordered.length - 1].name : ordered[0].name;
+  const destination = isReturn ? ordered[0].name : ordered[ordered.length - 1].name;
+
+  const nextIdx = isReturn
+    ? bestT < 0.08 && bestSegIdx - 1 >= 0
+      ? bestSegIdx - 1
+      : bestSegIdx
+    : bestT > 0.92 && bestSegIdx + 2 < ordered.length
+      ? bestSegIdx + 2
+      : bestSegIdx + 1;
+
   const nextPoint = ordered[nextIdx];
 
   const rawDistKm = haversineKm(lat, lng, nextPoint.lat, nextPoint.lng);
@@ -96,10 +127,9 @@ export function computeBusProgress(
     speedKmh >= 8 ? Math.min(55, Math.max(12, speedKmh)) : 22;
   const etaNextStopMins = Math.max(1, Math.round((rawDistKm / effectiveSpeedKmh) * 60));
 
-  const progressPct = Math.max(
-    5,
-    Math.min(98, Math.round(((bestSegIdx + bestT) / (ordered.length - 1)) * 100))
-  );
+  const forwardRatio = (bestSegIdx + bestT) / (ordered.length - 1);
+  const ratio = isReturn ? 1 - forwardRatio : forwardRatio;
+  const progressPct = Math.max(5, Math.min(98, Math.round(ratio * 100)));
 
   return {
     originStop,
@@ -108,6 +138,7 @@ export function computeBusProgress(
     distanceToNextStopKm,
     etaNextStopMins,
     progressPct,
+    direction: isReturn ? "return" : "forward",
   };
 }
 

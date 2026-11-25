@@ -21,8 +21,20 @@ const MEMORY_CACHE = new Map<string, CacheEntry<unknown>>();
 const IN_FLIGHT = new Map<string, Promise<CacheEntry<unknown>>>();
 const LOCAL_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
+function isAutoOfflineEnabled(): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    const raw = localStorage.getItem("pravah.savedTransit.v1");
+    if (!raw) return true;
+    const parsed = JSON.parse(raw) as { preferences?: { autoOffline?: boolean } };
+    return parsed.preferences?.autoOffline ?? true;
+  } catch {
+    return true;
+  }
+}
+
 function readCachedList<T>(cacheKey?: string): T[] | null {
-  if (!cacheKey || typeof window === "undefined") return null;
+  if (!cacheKey || typeof window === "undefined" || !isAutoOfflineEnabled()) return null;
   try {
     const raw = localStorage.getItem(cacheKey);
     if (!raw) return null;
@@ -39,7 +51,7 @@ function readCachedList<T>(cacheKey?: string): T[] | null {
 }
 
 function writeCachedList<T>(cacheKey: string | undefined, items: T[]) {
-  if (!cacheKey || typeof window === "undefined") return;
+  if (!cacheKey || typeof window === "undefined" || !isAutoOfflineEnabled()) return;
   try {
     localStorage.setItem(cacheKey, JSON.stringify(items));
     localStorage.setItem(`${cacheKey}.updatedAt`, new Date().toISOString());

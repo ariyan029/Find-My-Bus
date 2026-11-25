@@ -25,6 +25,23 @@ test("computeBusProgress tracks segment progress and next stop ETA", () => {
   assert.equal(progress.nextStop, "Salt Lake Karunamoyee");
   assert.ok(progress.etaNextStopMins >= 1);
   assert.ok(progress.progressPct > 40 && progress.progressPct < 90);
+  assert.equal(progress.direction, "forward");
+
+  // Return trip heading West (270 deg) from Karunamoyee back toward Howrah Station
+  const returnProgress = computeBusProgress(
+    22.592,
+    88.405,
+    30,
+    s12.stopPoints,
+    s12.source,
+    s12.destination,
+    270
+  );
+  assert.equal(returnProgress.direction, "return");
+  assert.equal(returnProgress.originStop, "New Town Shapoorji");
+  assert.equal(returnProgress.destination, "Howrah Station");
+  assert.equal(returnProgress.nextStop, "Ultadanga Hudco");
+  assert.ok(returnProgress.progressPct > 10 && returnProgress.progressPct < 60);
 });
 
 test("findJourneys returns direct and 1-transfer Kolkata routes with schedule outcomes", () => {

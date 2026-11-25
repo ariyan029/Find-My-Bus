@@ -84,14 +84,21 @@ export async function getLiveBusesWithMeta(filterRoute?: string): Promise<LiveBu
 
       if (dbBuses.length > 0) {
         const fiveMinsAgo = new Date(Date.now() - 5 * 60_000);
-        const contributorCounts = await db.telemetryPing.groupBy({
-          by: ["busId"],
+        const recentPings = await db.telemetryPing.findMany({
           where: { recordedAt: { gte: fiveMinsAgo }, busId: { not: null } },
-          _count: { _all: true },
+          select: { busId: true, contributorId: true, deviceId: true },
         });
-        const countByBus = new Map(
-          contributorCounts.map((c) => [c.busId as string, c._count._all])
-        );
+        const contributorsByBus = new Map<string, Set<string>>();
+        for (const p of recentPings) {
+          const busId = p.busId as string;
+          const actor = p.deviceId || p.contributorId || "anon";
+          let set = contributorsByBus.get(busId);
+          if (!set) {
+            set = new Set();
+            contributorsByBus.set(busId, set);
+          }
+          set.add(actor);
+        }
 
         const buses: LiveBus[] = dbBuses.map((b) => {
           const stopPoints: RouteStopPoint[] | undefined =
@@ -120,7 +127,8 @@ export async function getLiveBusesWithMeta(filterRoute?: string): Promise<LiveBu
             speedKmh,
             stopPoints,
             fallbackOrigin,
-            fallbackDest
+            fallbackDest,
+            b.heading
           );
 
           return {
@@ -147,7 +155,7 @@ export async function getLiveBusesWithMeta(filterRoute?: string): Promise<LiveBu
               1,
               Math.floor((Date.now() - new Date(b.lastPing).getTime()) / 1000)
             ),
-            crowdsourceContributors: Math.max(1, countByBus.get(b.id) ?? 1),
+            crowdsourceContributors: Math.max(1, contributorsByBus.get(b.id)?.size ?? 1),
           };
         });
 
