@@ -8,6 +8,7 @@ import {
   KOLKATA_ROUTES,
   KOLKATA_STOPS,
   LiveBus,
+  ROUTE_BY_NUMBER,
   RouteStopPoint,
 } from "./data";
 import {
@@ -113,7 +114,7 @@ export async function getLiveBusesWithMeta(filterRoute?: string): Promise<LiveBu
                   typicalTimeMins: rs.typicalTimeMins,
                   fareFromStart: rs.fareFromStart,
                 }))
-              : KOLKATA_ROUTES.find((r) => r.routeNumber === b.busNumber)?.stopPoints;
+              : ROUTE_BY_NUMBER.get(b.busNumber.toLowerCase())?.stopPoints;
 
           const lat = b.currentLat ?? 22.5726;
           const lng = b.currentLng ?? 88.3639;
@@ -196,7 +197,7 @@ export async function getRoutes(query?: string): Promise<BusRoute[]> {
 
       if (dbRoutes.length > 0) {
         const mapped: BusRoute[] = dbRoutes.map((r) => {
-          const fallback = KOLKATA_ROUTES.find((fr) => fr.routeNumber === r.routeNumber);
+          const fallback = ROUTE_BY_NUMBER.get(r.routeNumber.toLowerCase());
           const stopPoints: RouteStopPoint[] | undefined =
             r.routeStops.length > 0
               ? r.routeStops.map((rs) => ({

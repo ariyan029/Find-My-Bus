@@ -87,6 +87,14 @@ export function useLocationSharing(options: LocationSharingOptions = {}) {
   const inFlightRef = React.useRef(false);
   const stopTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestOptionsRef = React.useRef(options);
+  const mountedRef = React.useRef(true);
+
+  React.useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   React.useEffect(() => {
     latestOptionsRef.current = options;
@@ -184,8 +192,9 @@ export function useLocationSharing(options: LocationSharingOptions = {}) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(body),
           });
-          if (res.status === 429) return;
+          if (!mountedRef.current || res.status === 429) return;
           const json = await res.json().catch(() => ({}));
+          if (!mountedRef.current) return;
           if (!res.ok || !json.success) {
             setState((s) => ({
               ...s,
@@ -215,6 +224,7 @@ export function useLocationSharing(options: LocationSharingOptions = {}) {
             warning: null,
           }));
         } catch {
+          if (!mountedRef.current) return;
           setState((s) => ({ ...s, warning: "You're offline. Will keep retrying." }));
         } finally {
           inFlightRef.current = false;
@@ -223,6 +233,7 @@ export function useLocationSharing(options: LocationSharingOptions = {}) {
 
       watchIdRef.current = navigator.geolocation.watchPosition(
         (pos) => {
+          if (!mountedRef.current) return;
           const speedKmh =
             pos.coords.speed != null && !Number.isNaN(pos.coords.speed)
               ? Math.round(pos.coords.speed * 3.6 * 10) / 10
@@ -232,18 +243,28 @@ export function useLocationSharing(options: LocationSharingOptions = {}) {
               ? Math.round(pos.coords.heading)
               : null;
 
-          setState((s) => ({
-            ...s,
-            status: "sharing",
-            accuracyMeters: pos.coords.accuracy,
-            lastCoords: {
-              lat: pos.coords.latitude,
-              lng: pos.coords.longitude,
-              speedKmh,
-              heading,
-            },
-            error: null,
-          }));
+          // Avoid redundant React re-renders when stationary GPS jitter is < ~4m.
+          setState((s) => {
+            const movedEnough =
+              s.status !== "sharing" ||
+              !s.lastCoords ||
+              Math.abs(s.lastCoords.lat - pos.coords.latitude) > 0.00004 ||
+              Math.abs(s.lastCoords.lng - pos.coords.longitude) > 0.00004 ||
+              Math.abs((s.accuracyMeters ?? 0) - pos.coords.accuracy) >= 5;
+            if (!movedEnough) return s;
+            return {
+              ...s,
+              status: "sharing",
+              accuracyMeters: pos.coords.accuracy,
+              lastCoords: {
+                lat: pos.coords.latitude,
+                lng: pos.coords.longitude,
+                speedKmh,
+                heading,
+              },
+              error: null,
+            };
+          });
 
           if (!inFlightRef.current && Date.now() - lastSendRef.current >= sendIntervalMs) {
             void send(pos);

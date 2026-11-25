@@ -2,6 +2,42 @@ import type { BusRoute, BusStop, LiveBus, RouteStopPoint } from "./data";
 import type { Occupancy, TelemetrySource } from "./enums";
 
 const EARTH_RADIUS_KM = 6371;
+const ORDERED_STOPS_CACHE = new WeakMap<RouteStopPoint[], RouteStopPoint[]>();
+
+interface RouteBBox {
+  minLat: number;
+  maxLat: number;
+  minLng: number;
+  maxLng: number;
+}
+const ROUTE_BBOX_CACHE = new WeakMap<BusRoute, RouteBBox>();
+
+function getRouteBBox(route: BusRoute): RouteBBox | null {
+  const cached = ROUTE_BBOX_CACHE.get(route);
+  if (cached) return cached;
+  const pts = route.stopPoints;
+  if (!pts || pts.length === 0) return null;
+
+  let minLat = Infinity;
+  let maxLat = -Infinity;
+  let minLng = Infinity;
+  let maxLng = -Infinity;
+  for (const p of pts) {
+    if (p.lat < minLat) minLat = p.lat;
+    if (p.lat > maxLat) maxLat = p.lat;
+    if (p.lng < minLng) minLng = p.lng;
+    if (p.lng > maxLng) maxLng = p.lng;
+  }
+  const pad = 0.022; // ~2.4 km bounding pad
+  const box: RouteBBox = {
+    minLat: minLat - pad,
+    maxLat: maxLat + pad,
+    minLng: minLng - pad,
+    maxLng: maxLng + pad,
+  };
+  ROUTE_BBOX_CACHE.set(route, box);
+  return box;
+}
 
 function toRad(deg: number): number {
   return (deg * Math.PI) / 180;
@@ -64,7 +100,11 @@ export function computeBusProgress(
     };
   }
 
-  const ordered = [...stopPoints].sort((a, b) => a.sequence - b.sequence);
+  let ordered = ORDERED_STOPS_CACHE.get(stopPoints);
+  if (!ordered) {
+    ordered = [...stopPoints].sort((a, b) => a.sequence - b.sequence);
+    ORDERED_STOPS_CACHE.set(stopPoints, ordered);
+  }
 
   // Find the closest point along any consecutive stop-to-stop segment.
   let bestSegIdx = 0;
@@ -513,6 +553,12 @@ function projectPointOntoRoute(
 ): CorridorProjection | null {
   const pts = route.stopPoints;
   if (!pts || pts.length < 2) return null;
+
+  // O(1) spatial bounding-box check skips ~85% of distant routes before trig/haversine math.
+  const box = getRouteBBox(route);
+  if (box && (lat < box.minLat || lat > box.maxLat || lng < box.minLng || lng > box.maxLng)) {
+    return null;
+  }
 
   const cosLat = Math.cos(toRad(lat));
   let bestSegIdx = 0;

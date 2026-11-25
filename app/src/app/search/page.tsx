@@ -54,6 +54,7 @@ function StopAutocompleteInput({
   placeholder: string;
 }) {
   const [open, setOpen] = React.useState(false);
+  const [activeIndex, setActiveIndex] = React.useState(-1);
 
   const indexedStops = React.useMemo(
     () =>
@@ -76,22 +77,43 @@ function StopAutocompleteInput({
     return matches;
   }, [value, stops, indexedStops]);
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!open || suggestions.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((prev) => (prev + 1) % suggestions.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((prev) => (prev <= 0 ? suggestions.length - 1 : prev - 1));
+    } else if (e.key === "Enter" && activeIndex >= 0 && suggestions[activeIndex]) {
+      e.preventDefault();
+      onChange(suggestions[activeIndex].name);
+      setOpen(false);
+      setActiveIndex(-1);
+    } else if (e.key === "Escape") {
+      setOpen(false);
+      setActiveIndex(-1);
+    }
+  };
+
   return (
     <div className="relative">
       <Input
         value={value}
         onFocus={() => setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onKeyDown={handleKeyDown}
         onChange={(e) => {
           onChange(e.target.value);
           setOpen(true);
+          setActiveIndex(-1);
         }}
         placeholder={placeholder}
         className="bg-white/60 backdrop-blur-md border border-white/80 h-10.5 text-xs text-[#4E342E] focus-visible:bg-white/85 focus-visible:ring-2 focus-visible:ring-[#CC5500]/30 focus-visible:border-[#CC5500] shadow-[inset_0_1px_2px_rgba(255,255,255,0.9)] rounded-xl"
       />
       {open && suggestions.length > 0 && (
         <div className="absolute left-0 right-0 top-full mt-1 z-30 rounded-xl border border-[#4E342E]/15 bg-white/95 backdrop-blur-2xl shadow-[0_14px_32px_rgba(78,52,46,0.18)] max-h-56 overflow-y-auto py-1">
-          {suggestions.map((stop) => (
+          {suggestions.map((stop, idx) => (
             <button
               key={stop.id}
               type="button"
@@ -99,8 +121,11 @@ function StopAutocompleteInput({
                 e.preventDefault();
                 onChange(stop.name);
                 setOpen(false);
+                setActiveIndex(-1);
               }}
-              className="w-full text-left px-3 py-2 hover:bg-[#CC5500]/10 transition-colors flex items-center justify-between gap-2 cursor-pointer"
+              className={`w-full text-left px-3 py-2 transition-colors flex items-center justify-between gap-2 cursor-pointer ${
+                idx === activeIndex ? "bg-[#CC5500]/15" : "hover:bg-[#CC5500]/10"
+              }`}
             >
               <div className="min-w-0">
                 <div className="text-xs font-bold text-[#4E342E] truncate">
@@ -253,6 +278,8 @@ function SearchPageContent({
       return true;
     });
   }, [routes, deferredSearchWord, filterType]);
+
+  const savedRouteSet = React.useMemo(() => new Set(savedRouteIds), [savedRouteIds]);
 
   const popularStops = [
     "Barasat Chapadali",
@@ -585,7 +612,7 @@ function SearchPageContent({
           <div className="space-y-2.5">
             {filteredRoutes.map((route) => {
               const isSelected = selectedRoute?.id === route.id;
-              const isSaved = savedRouteIds.includes(route.id);
+              const isSaved = savedRouteSet.has(route.id);
               return (
                 <div
                   key={route.id}

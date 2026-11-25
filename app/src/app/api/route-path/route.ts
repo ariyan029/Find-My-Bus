@@ -8,9 +8,13 @@ interface CachedRoutePath {
   distanceKm?: number;
   durationMins?: number;
   stops: RouteStopPoint[];
+  expiresAt: number;
 }
 
 const ROUTE_PATH_CACHE = new Map<string, CachedRoutePath>();
+const IN_FLIGHT_PATHS = new Map<string, Promise<CachedRoutePath>>();
+const OSRM_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const FALLBACK_CACHE_TTL_MS = 60 * 1000;
 
 function sliceStopPoints(
   points: RouteStopPoint[],
@@ -71,10 +75,17 @@ export async function GET(request: NextRequest) {
 
   const cacheKey = `${routeNumber.toLowerCase()}|${(fromQuery || "").toLowerCase()}|${(toQuery || "").toLowerCase()}`;
   const cached = ROUTE_PATH_CACHE.get(cacheKey);
-  if (cached) {
+  if (cached && cached.expiresAt > Date.now()) {
     return NextResponse.json(
       { success: true, routeNumber, ...cached },
-      { headers: { "Cache-Control": "public, max-age=3600" } }
+      {
+        headers: {
+          "Cache-Control":
+            cached.geometrySource === "osrm"
+              ? "public, max-age=3600, stale-while-revalidate=86400"
+              : "public, max-age=60",
+        },
+      }
     );
   }
 
@@ -89,69 +100,91 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  const existingFlight = IN_FLIGHT_PATHS.get(cacheKey);
+  if (existingFlight) {
+    const shared = await existingFlight;
+    return NextResponse.json({ success: true, routeNumber: route.routeNumber, ...shared });
+  }
+
   const slicedStops = sliceStopPoints(route.stopPoints, fromQuery, toQuery);
   const stopCoords: Array<[number, number]> = slicedStops.map((s) => [s.lat, s.lng]);
 
-  try {
-    const waypoints = sampleWaypoints(slicedStops, 25);
-    const coordStr = waypoints.map((w) => `${w.lng},${w.lat}`).join(";");
-    const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coordStr}?overview=full&geometries=geojson`;
+  const computePromise = (async (): Promise<CachedRoutePath> => {
+    try {
+      const waypoints = sampleWaypoints(slicedStops, 25);
+      const coordStr = waypoints.map((w) => `${w.lng},${w.lat}`).join(";");
+      const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coordStr}?overview=full&geometries=geojson`;
 
-    const res = await fetch(osrmUrl, {
-      headers: {
-        "User-Agent": "PRAVAH-Kolkata-Transit/1.0",
-        Accept: "application/json",
-      },
-      signal: AbortSignal.timeout(4000),
-    });
+      const res = await fetch(osrmUrl, {
+        headers: {
+          "User-Agent": "PRAVAH-Kolkata-Transit/1.0",
+          Accept: "application/json",
+        },
+        signal: AbortSignal.timeout(4000),
+      });
 
-    if (res.ok) {
-      const json = (await res.json()) as {
-        code?: string;
-        routes?: Array<{
-          distance?: number;
-          duration?: number;
-          geometry?: { coordinates?: Array<[number, number]> };
-        }>;
-      };
-      const osrmRoute = json.routes?.[0];
-      const rawCoords = osrmRoute?.geometry?.coordinates;
-      if (json.code === "Ok" && rawCoords && rawCoords.length >= 2) {
-        // OSRM returns [lng, lat]; Leaflet expects [lat, lng].
-        const coordinates: Array<[number, number]> = rawCoords.map(([lng, lat]) => [lat, lng]);
-        const payload: CachedRoutePath = {
-          coordinates,
-          geometrySource: "osrm",
-          distanceKm:
-            osrmRoute.distance != null
-              ? Math.round((osrmRoute.distance / 1000) * 10) / 10
-              : undefined,
-          durationMins:
-            osrmRoute.duration != null
-              ? Math.max(1, Math.round(osrmRoute.duration / 60))
-              : undefined,
-          stops: slicedStops,
+      if (res.ok) {
+        const json = (await res.json()) as {
+          code?: string;
+          routes?: Array<{
+            distance?: number;
+            duration?: number;
+            geometry?: { coordinates?: Array<[number, number]> };
+          }>;
         };
-        if (ROUTE_PATH_CACHE.size > 300) ROUTE_PATH_CACHE.clear();
-        ROUTE_PATH_CACHE.set(cacheKey, payload);
-        return NextResponse.json(
-          { success: true, routeNumber: route.routeNumber, ...payload },
-          { headers: { "Cache-Control": "public, max-age=86400" } }
-        );
+        const osrmRoute = json.routes?.[0];
+        const rawCoords = osrmRoute?.geometry?.coordinates;
+        if (json.code === "Ok" && rawCoords && rawCoords.length >= 2) {
+          // OSRM returns [lng, lat]; Leaflet expects [lat, lng].
+          const coordinates: Array<[number, number]> = rawCoords.map(([lng, lat]) => [lat, lng]);
+          return {
+            coordinates,
+            geometrySource: "osrm",
+            distanceKm:
+              osrmRoute.distance != null
+                ? Math.round((osrmRoute.distance / 1000) * 10) / 10
+                : undefined,
+            durationMins:
+              osrmRoute.duration != null
+                ? Math.max(1, Math.round(osrmRoute.duration / 60))
+                : undefined,
+            stops: slicedStops,
+            expiresAt: Date.now() + OSRM_CACHE_TTL_MS,
+          };
+        }
       }
+    } catch {
+      // OSRM unreachable or timed out — fall back to direct stop-to-stop polyline
     }
-  } catch {
-    // OSRM unreachable or timed out — fall back to direct stop-to-stop polyline
+
+    return {
+      coordinates: stopCoords,
+      geometrySource: "stops",
+      stops: slicedStops,
+      expiresAt: Date.now() + FALLBACK_CACHE_TTL_MS,
+    };
+  })();
+
+  IN_FLIGHT_PATHS.set(cacheKey, computePromise);
+  let payload: CachedRoutePath;
+  try {
+    payload = await computePromise;
+  } finally {
+    IN_FLIGHT_PATHS.delete(cacheKey);
   }
 
-  const fallbackPayload: CachedRoutePath = {
-    coordinates: stopCoords,
-    geometrySource: "stops",
-    stops: slicedStops,
-  };
-  return NextResponse.json({
-    success: true,
-    routeNumber: route.routeNumber,
-    ...fallbackPayload,
-  });
+  if (ROUTE_PATH_CACHE.size > 300) ROUTE_PATH_CACHE.clear();
+  ROUTE_PATH_CACHE.set(cacheKey, payload);
+
+  return NextResponse.json(
+    { success: true, routeNumber: route.routeNumber, ...payload },
+    {
+      headers: {
+        "Cache-Control":
+          payload.geometrySource === "osrm"
+            ? "public, max-age=86400"
+            : "public, max-age=60",
+      },
+    }
+  );
 }

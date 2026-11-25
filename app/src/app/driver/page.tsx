@@ -92,8 +92,10 @@ export default function DriverIoTPage() {
   React.useEffect(() => {
     if (!simulating) return;
     simStepRef.current = 0;
+    const controller = new AbortController();
 
     const tick = async () => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
       const ctx = simContextRef.current;
       const bus = ctx.selectedBus;
       const route =
@@ -120,9 +122,10 @@ export default function DriverIoTPage() {
       );
 
       try {
-        await fetch("/api/driver/broadcast", {
+        const res = await fetch("/api/driver/broadcast", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          signal: controller.signal,
           body: JSON.stringify({
             busId: bus.id,
             busNumber: bus.busNumber,
@@ -138,16 +141,21 @@ export default function DriverIoTPage() {
             status: ctx.busStatus,
           }),
         });
-        setSimStepCount((c) => c + 1);
+        if (!controller.signal.aborted && res.ok) {
+          setSimStepCount((c) => c + 1);
+        }
       } catch {
-        // Ignore transient network error
+        // Ignore abort or transient network error
       }
       simStepRef.current += 1;
     };
 
     void tick();
     const timer = setInterval(() => void tick(), 3000);
-    return () => clearInterval(timer);
+    return () => {
+      controller.abort();
+      clearInterval(timer);
+    };
   }, [simulating, selectedBusId]);
 
   const sendTestEspPing = async (e: React.FormEvent) => {

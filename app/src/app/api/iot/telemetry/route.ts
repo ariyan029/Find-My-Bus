@@ -62,7 +62,10 @@ const IoTPayloadSchema = z
 
 export async function GET() {
   const data = await getIoTDevices();
-  return NextResponse.json({ success: true, ...data });
+  return NextResponse.json(
+    { success: true, ...data },
+    { headers: { "Cache-Control": "no-store, max-age=0" } }
+  );
 }
 
 export async function POST(request: NextRequest) {

@@ -299,7 +299,14 @@ const BusMarker = React.memo(function BusMarker({
 
 const TILE_PROVIDERS = [
   {
-    name: "OpenStreetMap Street",
+    name: "OpenStreetMap",
+    url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+    subdomains: "",
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  },
+  {
+    name: "OpenStreetMap Mirror",
     url: "https://tile.openstreetmap.de/{z}/{x}/{y}.png",
     subdomains: "",
     attribution:
@@ -312,6 +319,33 @@ const TILE_PROVIDERS = [
     attribution: "Tiles &copy; Esri &mdash; Source: Esri, OpenStreetMap contributors",
   },
 ] as const;
+
+interface ClientPathEntry {
+  coords: Array<[number, number]>;
+  source: "osrm" | "stops";
+}
+
+const CLIENT_PATH_CACHE = new Map<string, ClientPathEntry>();
+const COMPLETED_LINE_OPTIONS = {
+  color: "#7E655D",
+  weight: 5,
+  opacity: 0.55,
+  dashArray: "6 6",
+} as const;
+const UPCOMING_CASING_OPTIONS = { color: "#FFFFFF", weight: 9, opacity: 0.92 } as const;
+const UPCOMING_LINE_OPTIONS = { color: "#2563EB", weight: 5, opacity: 0.95 } as const;
+const PASSENGER_RING_OPTIONS = {
+  color: "#2563EB",
+  weight: 1,
+  fillColor: "#2563EB",
+  fillOpacity: 0.14,
+} as const;
+const PASSENGER_DOT_OPTIONS = {
+  color: "#FFFFFF",
+  weight: 3,
+  fillColor: "#2563EB",
+  fillOpacity: 1,
+} as const;
 
 export default function BusMap({
   buses,
@@ -331,8 +365,9 @@ export default function BusMap({
   const [tileProviderIdx, setTileProviderIdx] = React.useState(0);
   const [followState, setFollowState] = React.useState<{
     busId: string | undefined;
+    fitTrigger: number;
     enabled: boolean;
-  }>({ busId: selectedBusId, enabled: true });
+  }>({ busId: selectedBusId, fitTrigger: fitRouteTrigger, enabled: fitRouteTrigger === 0 });
 
   // Road-following geometry fetched asynchronously from /api/route-path (OSRM + stop fallback).
   const [roadPathCache, setRoadPathCache] = React.useState<{
@@ -352,35 +387,41 @@ export default function BusMap({
   }, [activeRoute, boardedFromStop, boardedToStop]);
 
   React.useEffect(() => {
-    if (!activeRoute || !routeRequestKey) return;
-    let active = true;
+    if (!activeRoute || !routeRequestKey || CLIENT_PATH_CACHE.has(routeRequestKey)) return;
 
+    const controller = new AbortController();
     const params = new URLSearchParams({ route: activeRoute.routeNumber });
     if (boardedFromStop) params.set("from", boardedFromStop);
     if (boardedToStop) params.set("to", boardedToStop);
 
-    fetch(`/api/route-path?${params.toString()}`)
+    fetch(`/api/route-path?${params.toString()}`, { signal: controller.signal })
       .then((r) => (r.ok ? r.json() : null))
       .then((json) => {
-        if (!active || !json?.success || !Array.isArray(json.coordinates)) return;
-        setRoadPathCache({
-          key: routeRequestKey,
+        if (controller.signal.aborted || !json?.success || !Array.isArray(json.coordinates)) return;
+        const entry: ClientPathEntry = {
           coords: json.coordinates as Array<[number, number]>,
           source: json.geometrySource === "osrm" ? "osrm" : "stops",
-        });
+        };
+        if (CLIENT_PATH_CACHE.size > 120) CLIENT_PATH_CACHE.clear();
+        CLIENT_PATH_CACHE.set(routeRequestKey, entry);
+        setRoadPathCache({ key: routeRequestKey, ...entry });
       })
       .catch(() => {
-        // Keep immediate stop-to-stop polyline fallback on offline error
+        // Keep immediate stop-to-stop polyline fallback on abort or offline error
       });
 
     return () => {
-      active = false;
+      controller.abort();
     };
   }, [activeRoute, routeRequestKey, boardedFromStop, boardedToStop]);
 
   const routeCoordinates = React.useMemo<Array<[number, number]>>(() => {
     if (roadPathCache && roadPathCache.key === routeRequestKey && roadPathCache.coords.length >= 2) {
       return roadPathCache.coords;
+    }
+    const clientCached = routeRequestKey ? CLIENT_PATH_CACHE.get(routeRequestKey) : undefined;
+    if (clientCached && clientCached.coords.length >= 2) {
+      return clientCached.coords;
     }
     return slicedRouteStops.map((s) => [s.lat, s.lng]);
   }, [roadPathCache, routeRequestKey, slicedRouteStops]);
@@ -404,19 +445,20 @@ export default function BusMap({
     [routeCoordinates, splitAnchor]
   );
 
-  const followEnabled =
-    followState.busId === selectedBusId && fitRouteTrigger === 0 ? followState.enabled : false;
+  // If fitRouteTrigger changed since last user follow toggle, pause bus follow so FitRouteBounds wins.
   const shouldFollowBus =
-    followState.busId === selectedBusId
-      ? followState.enabled
-      : fitRouteTrigger === 0;
+    followState.fitTrigger !== fitRouteTrigger
+      ? false
+      : followState.busId === selectedBusId
+        ? followState.enabled
+        : true;
 
   const pauseFollow = React.useCallback(() => {
-    setFollowState({ busId: selectedBusId, enabled: false });
-  }, [selectedBusId]);
+    setFollowState({ busId: selectedBusId, fitTrigger: fitRouteTrigger, enabled: false });
+  }, [selectedBusId, fitRouteTrigger]);
   const enableFollow = React.useCallback(() => {
-    setFollowState({ busId: selectedBusId, enabled: true });
-  }, [selectedBusId]);
+    setFollowState({ busId: selectedBusId, fitTrigger: fitRouteTrigger, enabled: true });
+  }, [selectedBusId, fitRouteTrigger]);
 
   const fitKey =
     fitRouteTrigger > 0 || passengerCoords
@@ -445,7 +487,7 @@ export default function BusMap({
           type="button"
           onClick={() => (shouldFollowBus ? pauseFollow() : enableFollow())}
           className={`absolute top-3 right-3 z-[400] px-2.5 py-1.5 rounded-lg text-[11px] font-bold border shadow-md backdrop-blur-md transition-colors cursor-pointer ${
-            shouldFollowBus || followEnabled
+            shouldFollowBus
               ? "bg-[#4E342E]/90 text-[#F8F4E7] border-white/25 hover:bg-[#4E342E]"
               : "bg-[#CC5500] text-white border-white/40 hover:bg-[#B34700]"
           }`}
@@ -467,7 +509,7 @@ export default function BusMap({
           attribution={provider.attribution}
           url={provider.url}
           subdomains={provider.subdomains}
-          maxNativeZoom={18}
+          maxNativeZoom={19}
           maxZoom={19}
           eventHandlers={{
             tileerror: () => {
@@ -480,23 +522,14 @@ export default function BusMap({
 
         {/* Completed route portion (muted) */}
         {completedPath.length >= 2 && (
-          <Polyline
-            positions={completedPath}
-            pathOptions={{ color: "#7E655D", weight: 5, opacity: 0.55, dashArray: "6 6" }}
-          />
+          <Polyline positions={completedPath} pathOptions={COMPLETED_LINE_OPTIONS} />
         )}
 
         {/* Active / Remaining Google-Maps-style route path (white casing + vivid blue route line) */}
         {upcomingPath.length >= 2 && (
           <>
-            <Polyline
-              positions={upcomingPath}
-              pathOptions={{ color: "#FFFFFF", weight: 9, opacity: 0.92 }}
-            />
-            <Polyline
-              positions={upcomingPath}
-              pathOptions={{ color: "#2563EB", weight: 5, opacity: 0.95 }}
-            />
+            <Polyline positions={upcomingPath} pathOptions={UPCOMING_CASING_OPTIONS} />
+            <Polyline positions={upcomingPath} pathOptions={UPCOMING_LINE_OPTIONS} />
           </>
         )}
 
@@ -544,23 +577,13 @@ export default function BusMap({
               <Circle
                 center={[passengerCoords.lat, passengerCoords.lng]}
                 radius={Math.min(250, Math.max(20, passengerCoords.accuracyMeters))}
-                pathOptions={{
-                  color: "#2563EB",
-                  weight: 1,
-                  fillColor: "#2563EB",
-                  fillOpacity: 0.14,
-                }}
+                pathOptions={PASSENGER_RING_OPTIONS}
               />
             )}
             <CircleMarker
               center={[passengerCoords.lat, passengerCoords.lng]}
               radius={8}
-              pathOptions={{
-                color: "#FFFFFF",
-                weight: 3,
-                fillColor: "#2563EB",
-                fillOpacity: 1,
-              }}
+              pathOptions={PASSENGER_DOT_OPTIONS}
             >
               <Tooltip direction="top" permanent>
                 You are here (Live GPS)

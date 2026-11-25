@@ -103,7 +103,9 @@ function LiveRadarContent({
       if (!matchSearch) return false;
       const busType = routeTypeByNumber.get(b.busNumber.toLowerCase());
       if (selectedCategory === "AC") {
-        return busType ? busType === "AC_EXPRESS" : b.busNumber.startsWith("AC") || b.busNumber.startsWith("S-12");
+        return busType
+          ? busType === "AC_EXPRESS" || busType === "ELECTRIC"
+          : b.busNumber.startsWith("AC") || b.busNumber.startsWith("S-12");
       }
       if (selectedCategory === "ORDINARY") {
         return busType ? busType === "ORDINARY" : !b.busNumber.startsWith("AC") && !b.busNumber.includes("B");
@@ -194,6 +196,24 @@ function LiveRadarContent({
     (sharing.status === "sharing" || sharing.status === "locating") &&
     !isSharingCurrentBus;
   const mapBuses = filteredBuses.length > 0 ? filteredBuses : liveBuses;
+
+  const handleSelectBus = React.useCallback((busId: string) => {
+    setSelectedBusId(busId);
+    setBoardedRouteNumber("");
+  }, []);
+
+  const majorHubs = React.useMemo(() => {
+    const priorityIds = new Set([
+      "stop-howrah",
+      "stop-esplanade",
+      "stop-sealdah",
+      "stop-sector5",
+      "stop-barasat",
+      "stop-airport",
+    ]);
+    const matched = stops.filter((s) => priorityIds.has(s.id));
+    return matched.length > 0 ? matched : stops.slice(0, 6);
+  }, [stops]);
 
   return (
     <div className="flex-1 flex flex-col space-y-6">
@@ -608,7 +628,7 @@ function LiveRadarContent({
             </h2>
 
             <div className="space-y-2">
-              {stops.slice(0, 4).map((stop) => {
+              {majorHubs.map((stop) => {
                 const isSaved = savedStopIds.includes(stop.id);
                 return (
                   <div
@@ -678,10 +698,7 @@ function LiveRadarContent({
                 buses={mapBuses}
                 stops={stops}
                 selectedBusId={currentBus.id}
-                onSelectBus={(busId) => {
-                  setSelectedBusId(busId);
-                  setBoardedRouteNumber("");
-                }}
+                onSelectBus={handleSelectBus}
                 activeRoute={activeRoute}
                 boardedFromStop={effectiveFromStop}
                 boardedToStop={effectiveToStop}

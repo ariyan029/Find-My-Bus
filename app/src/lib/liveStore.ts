@@ -1,8 +1,9 @@
 import {
   ACTIVE_LIVE_BUSES,
   IoTDeviceInfo,
-  KOLKATA_ROUTES,
   LiveBus,
+  ROUTE_BY_ID,
+  ROUTE_BY_NUMBER,
   SEED_IOT_DEVICES,
 } from "./data";
 import { BusStatus, Occupancy, TelemetrySource } from "./enums";
@@ -47,7 +48,7 @@ function createInitialState(): LiveMemoryState {
   const now = Date.now();
   const buses = new Map<string, MemoryBusRecord>();
   for (const b of ACTIVE_LIVE_BUSES) {
-    const route = KOLKATA_ROUTES.find((r) => r.id === b.routeId);
+    const route = ROUTE_BY_ID.get(b.routeId);
     const progress = computeBusProgress(
       b.currentLat,
       b.currentLng,
@@ -146,9 +147,7 @@ export function ingestMemoryTelemetry(input: MemoryIngestInput): MemoryIngestRes
 
   // If this bus doesn't exist yet (e.g., new ESP32 unit or driver starting on route 239B), register it.
   if (!record) {
-    const route = KOLKATA_ROUTES.find(
-      (r) => r.routeNumber.toLowerCase() === input.busNumber.toLowerCase()
-    );
+    const route = ROUTE_BY_NUMBER.get(input.busNumber.toLowerCase());
     const id =
       input.busId ||
       `bus-${input.busNumber.toLowerCase().replace(/[^a-z0-9]+/g, "")}-${String(store.buses.size + 1).padStart(2, "0")}`;
@@ -200,11 +199,9 @@ export function ingestMemoryTelemetry(input: MemoryIngestInput): MemoryIngestRes
   const updatedPosition = goodFix && !holdActive;
 
   if (updatedPosition) {
-    const route = KOLKATA_ROUTES.find(
-      (r) =>
-        r.id === record!.bus.routeId ||
-        r.routeNumber.toLowerCase() === record!.bus.busNumber.toLowerCase()
-    );
+    const route =
+      ROUTE_BY_ID.get(record.bus.routeId) ??
+      ROUTE_BY_NUMBER.get(record.bus.busNumber.toLowerCase());
     const nextSpeed = input.speedKmh ?? record.bus.speedKmh;
     const nextHeading = input.heading ?? record.bus.heading;
     const progress = computeBusProgress(

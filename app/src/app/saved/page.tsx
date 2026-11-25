@@ -40,8 +40,15 @@ function SavedPageContent() {
   const routes = apiRoutes.length > 0 ? apiRoutes : KOLKATA_ROUTES;
   const stops = apiStops.length > 0 ? apiStops : KOLKATA_STOPS;
 
-  const favoriteRoutes = routes.filter((r) => savedRouteIds.includes(r.id));
-  const favoriteStops = stops.filter((s) => savedStopIds.includes(s.id));
+  const favoriteRoutes = React.useMemo(() => {
+    const idSet = new Set(savedRouteIds);
+    return routes.filter((r) => idSet.has(r.id));
+  }, [routes, savedRouteIds]);
+
+  const favoriteStops = React.useMemo(() => {
+    const idSet = new Set(savedStopIds);
+    return stops.filter((s) => idSet.has(s.id));
+  }, [stops, savedStopIds]);
 
   return (
     <div className="flex-1 flex flex-col space-y-6">
@@ -245,7 +252,10 @@ function SavedPageContent() {
                         Lines: {item.lines}
                       </p>
                     </div>
-                    <span className="text-[10px] text-[#7E655D] font-medium shrink-0">
+                    <span
+                      suppressHydrationWarning
+                      className="text-[10px] text-[#7E655D] font-medium shrink-0"
+                    >
                       {formatRelativeTime(item.timestampIso)}
                     </span>
                   </Link>

@@ -3186,15 +3186,32 @@ export const KOLKATA_ROUTES: BusRoute[] = ROUTE_SPECS.map((spec) => {
   };
 });
 
-export const KOLKATA_STOPS: BusStop[] = BASE_STOPS.map((stop) => {
-  const connectingRoutes = KOLKATA_ROUTES.filter((r) =>
-    r.stopPoints?.some((sp) => sp.stopId === stop.id)
-  ).map((r) => r.routeNumber);
-  return {
-    ...stop,
-    connectingRoutes,
-  };
-});
+const ROUTES_BY_STOP_ID = new Map<string, string[]>();
+for (const route of KOLKATA_ROUTES) {
+  if (!route.stopPoints) continue;
+  for (const sp of route.stopPoints) {
+    const list = ROUTES_BY_STOP_ID.get(sp.stopId);
+    if (list) list.push(route.routeNumber);
+    else ROUTES_BY_STOP_ID.set(sp.stopId, [route.routeNumber]);
+  }
+}
+
+export const KOLKATA_STOPS: BusStop[] = BASE_STOPS.map((stop) => ({
+  ...stop,
+  connectingRoutes: ROUTES_BY_STOP_ID.get(stop.id) ?? [],
+}));
+
+export const ROUTE_BY_ID = new Map<string, BusRoute>(
+  KOLKATA_ROUTES.map((r) => [r.id, r])
+);
+
+export const ROUTE_BY_NUMBER = new Map<string, BusRoute>(
+  KOLKATA_ROUTES.map((r) => [r.routeNumber.toLowerCase(), r])
+);
+
+export const STOP_BY_ID_MAP = new Map<string, BusStop>(
+  KOLKATA_STOPS.map((s) => [s.id, s])
+);
 
 export const ACTIVE_LIVE_BUSES: LiveBus[] = [
   {
