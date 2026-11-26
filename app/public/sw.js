@@ -34,8 +34,11 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  // Never cache live telemetry or health endpoints.
+  // Never intercept localhost dev traffic or live telemetry endpoints.
   if (
+    url.hostname === "localhost" ||
+    url.hostname === "127.0.0.1" ||
+    url.pathname.startsWith("/_next/") ||
     url.pathname.startsWith("/api/buses/live") ||
     url.pathname.startsWith("/api/iot/") ||
     url.pathname.startsWith("/api/health")
@@ -43,30 +46,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Stale-While-Revalidate for catalog APIs and immutable/static media assets.
-  if (
-    url.pathname.startsWith("/api/routes") ||
-    url.pathname.startsWith("/api/stops") ||
-    url.pathname.startsWith("/_next/static/") ||
-    /\.(png|jpg|jpeg|svg|webp|avif|ico|json)$/.test(url.pathname)
-  ) {
-    event.respondWith(
-      caches.open(CACHE_NAME).then((cache) =>
-        cache.match(request).then((cached) => {
-          const networkFetch = fetch(request)
-            .then((res) => {
-              if (res.ok) cache.put(request, res.clone()).catch(() => {});
-              return res;
-            })
-            .catch(() => cached);
-          return cached || networkFetch;
-        })
-      )
-    );
-    return;
-  }
-
-  // Network-first with cache fallback for HTML pages.
+  // Network-first with cache fallback for routes, stops, and pages.
   event.respondWith(
     fetch(request)
       .then((res) => {

@@ -374,7 +374,10 @@ function LiveRadarContent({
                   <div className="flex items-center justify-center gap-1 text-[#7E655D] text-[10px] uppercase font-bold tracking-wider">
                     <Radio className="h-3 w-3 text-[#CC5500]" /> Updated
                   </div>
-                  <p className="text-xs font-bold text-[#4E342E] mt-0.5 font-mono tabular-nums">
+                  <p
+                    suppressHydrationWarning
+                    className="text-xs font-bold text-[#4E342E] mt-0.5 font-mono tabular-nums"
+                  >
                     {formatUpdatedAgo(currentBus.lastUpdatedSecsAgo)}
                   </p>
                 </div>

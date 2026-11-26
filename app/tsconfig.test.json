@@ -13,5 +13,5 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src/lib/enums.ts", "src/lib/data.ts", "src/lib/transit.ts", "src/lib/liveStore.ts", "src/lib/rateLimit.ts", "tests/**/*.ts"]
+  "include": ["src/lib/enums.ts", "src/lib/data.ts", "src/lib/transit.ts", "src/lib/liveStore.ts", "src/lib/rateLimit.ts", "tests/**/*.ts", "prisma/seed.ts"]
 }

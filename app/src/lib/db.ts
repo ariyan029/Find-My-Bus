@@ -1,3 +1,5 @@
+import dns from "node:dns";
+import net from "node:net";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
@@ -38,9 +40,17 @@ export function getPrisma(): PrismaClient | null {
       const connectionString =
         process.env.DATABASE_URL ||
         "postgresql://postgres:postgres@localhost:5432/findmybus?schema=public";
+      const isRemoteDb =
+        connectionString.includes("neon.tech") ||
+        connectionString.includes("sslmode=require") ||
+        !connectionString.includes("localhost");
+      if (isRemoteDb) {
+        dns.setDefaultResultOrder("ipv4first");
+        net.setDefaultAutoSelectFamilyAttemptTimeout?.(3000);
+      }
       const pool = new Pool({
         connectionString,
-        connectionTimeoutMillis: 1200,
+        connectionTimeoutMillis: isRemoteDb ? 12000 : 1500,
       });
       const adapter = new PrismaPg(pool);
       prismaInstance = new PrismaClient({ adapter });
